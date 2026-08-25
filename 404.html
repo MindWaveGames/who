@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>who</title>
+<script>
+  // ------------------------------------------------------------
+  // Truque padrão para SPA em GitHub Pages.
+  // GitHub Pages não tem servidor com rotas: quando alguém acessa
+  // who.editoramindwave.com.br/joaosilva, ele não acha um arquivo
+  // "joaosilva" e cai aqui, no 404.html.
+  // Aqui a gente pega o caminho digitado e redireciona pro
+  // index.html, guardando o caminho original como query string
+  // (?p=/joaosilva). O index.html lê isso e sabe qual slug buscar.
+  // ------------------------------------------------------------
+  var caminho = window.location.pathname + window.location.search + window.location.hash;
+  var partes = window.location.pathname.split('/').filter(Boolean);
+  var slugOriginal = '/' + partes.join('/');
+
+  var query = new URLSearchParams(window.location.search);
+  var novaQuery = new URLSearchParams();
+  novaQuery.set('p', slugOriginal);
+  if (query.get('token')) {
+    novaQuery.set('token', query.get('token'));
+  }
+
+  window.location.replace('/?' + novaQuery.toString());
+</script>
+</head>
+<body>
+  Redirecionando…
+</body>
+</html>

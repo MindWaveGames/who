@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>who — identidade em um link</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B0B0C;
+    --paper:#F7F5F1;
+    --signal:#FF4F32;
+    --graphite:#6B6B70;
+    --hairline:#2A2A2D;
+    --ok:#3FA796;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .scene{
+    width:100%;
+    max-width:420px;
+  }
+  .prompt{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--graphite);
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:18px;
+    letter-spacing:0.02em;
+  }
+  .prompt .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--signal);
+    box-shadow:0 0 8px var(--signal);
+    flex-shrink:0;
+  }
+  .card{
+    background:var(--paper);
+    color:var(--ink);
+    border-radius:18px;
+    padding:36px 28px 28px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);
+    position:relative;
+    overflow:hidden;
+  }
+  .card::before{
+    content:"";
+    position:absolute;
+    top:0;left:0;right:0;
+    height:3px;
+    background:linear-gradient(90deg, var(--signal), transparent 70%);
+  }
+  .avatar{
+    width:64px;height:64px;
+    border-radius:50%;
+    background:var(--ink);
+    color:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;font-size:22px;
+    margin-bottom:16px;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .avatar img{width:100%;height:100%;object-fit:cover;}
+  h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:24px;
+    line-height:1.2;
+    margin:0 0 6px;
+  }
+  .bio{
+    color:var(--graphite);
+    font-size:14.5px;
+    line-height:1.5;
+    margin:0 0 26px;
+  }
+  .links{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .link-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 16px;
+    border:1px solid var(--hairline);
+    border-radius:12px;
+    text-decoration:none;
+    color:var(--ink);
+    background:transparent;
+    transition:transform .15s ease, background .15s ease, border-color .15s ease;
+    font-weight:500;
+    font-size:15px;
+  }
+  .link-row:hover{
+    background:var(--ink);
+    color:var(--paper);
+    border-color:var(--ink);
+    transform:translateX(2px);
+  }
+  .link-row .arrow{
+    font-family:'IBM Plex Mono', monospace;
+    opacity:0.5;
+  }
+  .footer-tag{
+    text-align:center;
+    margin-top:22px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--graphite);
+    letter-spacing:0.05em;
+  }
+  .footer-tag a{color:var(--graphite);}
+
+  /* estados */
+  .state-box{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--graphite);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+  }
+  .state-box .big{
+    font-family:'Space Grotesk', sans-serif;
+    color:var(--paper);
+    font-size:20px;
+    margin-bottom:8px;
+  }
+
+  /* modo edicao */
+  .edit-banner{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:var(--signal);
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    font-weight:500;
+    padding:8px 14px;
+    border-radius:999px;
+    margin-bottom:16px;
+    width:fit-content;
+  }
+  .field{
+    margin-bottom:14px;
+  }
+  .field label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--graphite);
+    margin-bottom:5px;
+    text-transform:lowercase;
+  }
+  .field input, .field textarea{
+    width:100%;
+    border:1px solid var(--hairline);
+    border-radius:10px;
+    padding:10px 12px;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    color:var(--ink);
+    background:#fff;
+    resize:vertical;
+  }
+  .field input:focus, .field textarea:focus{
+    outline:2px solid var(--signal);
+    outline-offset:1px;
+  }
+  .link-edit-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .link-edit-row input{flex:1;}
+  .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    border:none;
+    border-radius:10px;
+    padding:10px 16px;
+    cursor:pointer;
+    font-weight:500;
+  }
+  .btn-remove{
+    background:transparent;
+    color:var(--graphite);
+    border:1px solid var(--hairline);
+    padding:0 12px;
+  }
+  .btn-add{
+    background:transparent;
+    color:var(--ink);
+    border:1px dashed var(--hairline);
+    width:100%;
+    margin-top:4px;
+  }
+  .btn-save{
+    background:var(--ink);
+    color:var(--paper);
+    width:100%;
+    margin-top:18px;
+    padding:13px;
+    font-size:13px;
+  }
+  .btn-save:disabled{opacity:0.5;cursor:default;}
+  .save-msg{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    margin-top:10px;
+  }
+  .save-msg.ok{color:var(--ok);}
+  .save-msg.err{color:var(--signal);}
+
+  @media (prefers-reduced-motion: reduce){
+    .link-row{transition:none;}
+  }
+</style>
+</head>
+<body>
+  <div class="scene">
+    <div class="prompt"><span class="dot"></span><span id="promptText">whois://</span></div>
+    <div class="card" id="card">
+      <div class="state-box" id="stateBox">
+        <div class="big">consultando…</div>
+        procurando registro na base
+      </div>
+    </div>
+    <div class="footer-tag">feito com <a href="https://editoramindwave.com.br" target="_blank" rel="noopener">who · editora mindwave</a></div>
+  </div>
+
+<script>
+const API_BASE = 'https://editoramindwave.com.br/api';
+
+function getSlugETokenDaURL() {
+  const params = new URLSearchParams(window.location.search);
+  const redirected = params.get('p'); // vindo do truque do 404.html
+  let path = redirected ? redirected : window.location.pathname;
+  path = path.replace(/^\/+|\/+$/g, ''); // tira barras nas pontas
+  const slug = path.split('/')[0] || '';
+  const token = params.get('token') || '';
+  return { slug, token };
+}
+
+const { slug, token } = getSlugETokenDaURL();
+const cardEl = document.getElementById('card');
+const promptEl = document.getElementById('promptText');
+promptEl.textContent = 'whois://' + (slug || '…');
+
+function iniciais(nome) {
+  return (nome || '?').trim().split(/\s+/).slice(0,2).map(p => p[0]).join('').toUpperCase();
+}
+
+function renderEstadoVazio() {
+  cardEl.innerHTML = `
+    <div class="state-box">
+      <div class="big">nenhum @ informado</div>
+      acesse pelo formato who.editoramindwave.com.br/seu-slug
+    </div>`;
+}
+
+function renderErro(msg) {
+  cardEl.innerHTML = `
+    <div class="state-box">
+      <div class="big">registro não encontrado</div>
+      ${msg || 'esse @ ainda não existe na base'}
+    </div>`;
+}
+
+function renderLeitura(pagina) {
+  const linksHtml = (pagina.links || []).map(l => `
+    <a class="link-row" href="${l.url}" target="_blank" rel="noopener">
+      <span>${l.titulo}</span><span class="arrow">→</span>
+    </a>`).join('');
+
+  const fotoHtml = pagina.foto_url
+    ? `<img src="${pagina.foto_url}" alt="${pagina.titulo}">`
+    : iniciais(pagina.titulo);
+
+  cardEl.innerHTML = `
+    <div class="avatar">${fotoHtml}</div>
+    <h1>${pagina.titulo}</h1>
+    ${pagina.bio ? `<p class="bio">${pagina.bio}</p>` : ''}
+    <div class="links">${linksHtml || '<span style="color:var(--graphite);font-size:14px;">nenhum link cadastrado ainda</span>'}</div>
+  `;
+}
+
+function renderEdicao(pagina) {
+  const links = pagina.links && pagina.links.length ? pagina.links : [{titulo:'', url:''}];
+
+  cardEl.innerHTML = `
+    <div class="edit-banner">✎ modo edição</div>
+    <div class="field">
+      <label>título</label>
+      <input type="text" id="fTitulo" value="${pagina.titulo || ''}">
+    </div>
+    <div class="field">
+      <label>bio</label>
+      <textarea id="fBio" rows="2">${pagina.bio || ''}</textarea>
+    </div>
+    <div class="field">
+      <label>foto (url)</label>
+      <input type="text" id="fFoto" value="${pagina.foto_url || ''}" placeholder="https://...">
+    </div>
+    <div class="field">
+      <label>links</label>
+      <div id="linksEditArea"></div>
+      <button class="btn btn-add" id="btnAddLink" type="button">+ adicionar link</button>
+    </div>
+    <button class="btn btn-save" id="btnSalvar" type="button">salvar alterações</button>
+    <div class="save-msg" id="saveMsg"></div>
+  `;
+
+  const linksArea = document.getElementById('linksEditArea');
+
+  function addLinkRow(titulo='', url='') {
+    const row = document.createElement('div');
+    row.className = 'link-edit-row';
+    row.innerHTML = `
+      <input type="text" placeholder="título" class="link-titulo" value="${titulo}">
+      <input type="text" placeholder="url" class="link-url" value="${url}">
+      <button class="btn btn-remove" type="button">✕</button>
+    `;
+    row.querySelector('.btn-remove').addEventListener('click', () => row.remove());
+    linksArea.appendChild(row);
+  }
+
+  links.forEach(l => addLinkRow(l.titulo, l.url));
+
+  document.getElementById('btnAddLink').addEventListener('click', () => addLinkRow());
+
+  document.getElementById('btnSalvar').addEventListener('click', async () => {
+    const btn = document.getElementById('btnSalvar');
+    const msg = document.getElementById('saveMsg');
+    btn.disabled = true;
+    btn.textContent = 'salvando…';
+    msg.textContent = '';
+    msg.className = 'save-msg';
+
+    const novosLinks = Array.from(linksArea.querySelectorAll('.link-edit-row'))
+      .map(row => ({
+        titulo: row.querySelector('.link-titulo').value.trim(),
+        url: row.querySelector('.link-url').value.trim(),
+      }))
+      .filter(l => l.titulo && l.url);
+
+    const payload = {
+      slug,
+      token,
+      titulo: document.getElementById('fTitulo').value.trim(),
+      bio: document.getElementById('fBio').value.trim(),
+      foto_url: document.getElementById('fFoto').value.trim(),
+      links: novosLinks,
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/salvar.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (data.sucesso) {
+        msg.textContent = '✓ alterações salvas';
+        msg.classList.add('ok');
+      } else {
+        msg.textContent = data.erro || 'não foi possível salvar';
+        msg.classList.add('err');
+      }
+    } catch (e) {
+      msg.textContent = 'erro de conexão com a api';
+      msg.classList.add('err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'salvar alterações';
+    }
+  });
+}
+
+async function iniciar() {
+  if (!slug) {
+    renderEstadoVazio();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/buscar.php?slug=${encodeURIComponent(slug)}`);
+    const data = await res.json();
+
+    if (!data.sucesso) {
+      renderErro(data.erro);
+      return;
+    }
+
+    if (token) {
+      renderEdicao(data.pagina);
+    } else {
+      renderLeitura(data.pagina);
+    }
+  } catch (e) {
+    renderErro('não foi possível conectar à api. tenta de novo em instantes.');
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Arquivos locais de configuração / editor
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# Nunca deve existir neste repositório (as credenciais ficam só na hospedagem)
+config.php
+.env
