@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>who — identidade em um link</title>
+<title>Who - MindWave</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -245,7 +245,7 @@
         procurando registro na base
       </div>
     </div>
-    <div class="footer-tag">feito com <a href="https://editoramindwave.com.br" target="_blank" rel="noopener">who · editora mindwave</a></div>
+    <div class="footer-tag">feito com ❤︎︎ <a href="https://editoramindwave.com.br" target="_blank" rel="noopener">mindwave</a></div>
   </div>
 
 <script>
@@ -264,7 +264,7 @@ function getSlugETokenDaURL() {
 const { slug, token } = getSlugETokenDaURL();
 const cardEl = document.getElementById('card');
 const promptEl = document.getElementById('promptText');
-promptEl.textContent = 'whois://' + (slug || '…');
+promptEl.textContent = 'who://' + (slug || '…');
 
 function iniciais(nome) {
   return (nome || '?').trim().split(/\s+/).slice(0,2).map(p => p[0]).join('').toUpperCase();
