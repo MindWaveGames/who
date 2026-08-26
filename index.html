@@ -41,7 +41,7 @@
     content:"";position:absolute;top:0;left:0;right:0;height:3px;
     background:linear-gradient(90deg, var(--accent), transparent 70%);
   }
-  .header-row{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+  .header-row{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px;}
   .avatar{
     width:64px;height:64px;border-radius:50%;flex-shrink:0;
     background:var(--ink);color:var(--paper);
@@ -50,7 +50,7 @@
     overflow:hidden;
   }
   .avatar img{width:100%;height:100%;object-fit:cover;}
-  .header-text{min-width:0;}
+  .header-text{min-width:0;flex:1;}
   h1{
     font-family:'Space Grotesk', sans-serif;font-weight:700;font-size:22px;
     line-height:1.2;margin:0 0 4px;
@@ -65,8 +65,7 @@
     margin:0 0 22px;white-space:pre-line;
   }
   .like-btn{
-    position:absolute;top:18px;right:18px;
-    display:flex;align-items:center;gap:6px;
+    display:flex;align-items:center;gap:6px;flex-shrink:0;
     background:rgba(0,0,0,0.04);
     border:1px solid var(--hairline);
     border-radius:999px;
@@ -77,6 +76,7 @@
     color:var(--graphite);
     transition:background .15s ease, color .15s ease, transform .1s ease;
     user-select:none;
+    margin-top:2px;
   }
   .like-btn:active{transform:scale(0.94);}
   .like-btn.curtido{
@@ -232,8 +232,9 @@ function iconeImgParaUrl(url) {
   return `<img src="${LOGOS_BASE}/${arquivo}.svg" alt="" loading="lazy">`;
 }
 
-function aplicarCorTema(hex) {
-  document.documentElement.style.setProperty('--accent', hex || '#FF4F32');
+function aplicarCorTema(hexAccent, hexFundo) {
+  document.documentElement.style.setProperty('--accent', hexAccent || '#FF4F32');
+  document.documentElement.style.setProperty('--paper', hexFundo || '#F7F5F1');
 }
 
 function renderEstadoVazio() {
@@ -266,32 +267,40 @@ function renderBlocoLeitura(bloco) {
 
 function configurarBotaoCurtir(pagina) {
   const chave = 'curtiu:' + pagina.slug;
-  const jaCurtiu = localStorage.getItem(chave) === '1';
+  let jaCurtiu = localStorage.getItem(chave) === '1';
   const btn = document.getElementById('btnCurtir');
   const contador = document.getElementById('curtirContador');
   const coracaoVazio = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7.5-4.6-10-9C.4 8.6 2 4 6.3 4 9 4 11 6 12 7.5 13 6 15 4 17.7 4 22 4 23.6 8.6 22 12c-2.5 4.4-10 9-10 9z"/></svg>`;
   const coracaoCheio = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-10-9C.4 8.6 2 4 6.3 4 9 4 11 6 12 7.5 13 6 15 4 17.7 4 22 4 23.6 8.6 22 12c-2.5 4.4-10 9-10 9z"/></svg>`;
 
-  if (jaCurtiu) btn.classList.add('curtido');
-  btn.querySelector('.icone-coracao').innerHTML = jaCurtiu ? coracaoCheio : coracaoVazio;
+  function atualizarVisual() {
+    btn.classList.toggle('curtido', jaCurtiu);
+    btn.querySelector('.icone-coracao').innerHTML = jaCurtiu ? coracaoCheio : coracaoVazio;
+  }
+  atualizarVisual();
   contador.textContent = pagina.likes || 0;
 
   btn.onclick = async () => {
     if (btn.dataset.processando === '1') return;
-    if (localStorage.getItem(chave) === '1') return;
-
     btn.dataset.processando = '1';
+
+    const acao = jaCurtiu ? 'descurtir' : 'curtir';
+
     try {
       const res = await fetch(`${API_BASE}/curtir.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: pagina.slug }),
+        body: JSON.stringify({ slug: pagina.slug, acao }),
       });
       const data = await res.json();
       if (data.sucesso) {
-        localStorage.setItem(chave, '1');
-        btn.classList.add('curtido');
-        btn.querySelector('.icone-coracao').innerHTML = coracaoCheio;
+        jaCurtiu = !jaCurtiu;
+        if (jaCurtiu) {
+          localStorage.setItem(chave, '1');
+        } else {
+          localStorage.removeItem(chave);
+        }
+        atualizarVisual();
         contador.textContent = data.likes;
       }
     } catch (e) {
@@ -303,7 +312,7 @@ function configurarBotaoCurtir(pagina) {
 }
 
 function renderLeitura(pagina) {
-  aplicarCorTema(pagina.cor_tema);
+  aplicarCorTema(pagina.cor_tema, pagina.cor_fundo);
 
   const blocosHtml = (pagina.blocos || []).map(renderBlocoLeitura).join('');
   const fotoHtml = pagina.foto_url
@@ -311,16 +320,16 @@ function renderLeitura(pagina) {
     : iniciais(pagina.titulo);
 
   cardEl.innerHTML = `
-    <button class="like-btn" id="btnCurtir" type="button">
-      <span class="icone-coracao"></span>
-      <span id="curtirContador">0</span>
-    </button>
     <div class="header-row">
       <div class="avatar">${fotoHtml}</div>
       <div class="header-text">
         <h1>${pagina.titulo}</h1>
         <div class="handle">@${pagina.slug}</div>
       </div>
+      <button class="like-btn" id="btnCurtir" type="button">
+        <span class="icone-coracao"></span>
+        <span id="curtirContador">0</span>
+      </button>
     </div>
     ${pagina.bio ? `<p class="bio">${pagina.bio}</p>` : ''}
     <div class="blocos">${blocosHtml || '<span style="color:var(--graphite);font-size:14px;">nenhum conteúdo cadastrado ainda</span>'}</div>
@@ -330,7 +339,7 @@ function renderLeitura(pagina) {
 }
 
 function renderEdicao(pagina) {
-  aplicarCorTema(pagina.cor_tema);
+  aplicarCorTema(pagina.cor_tema, pagina.cor_fundo);
 
   const blocos = pagina.blocos && pagina.blocos.length ? pagina.blocos : [{tipo:'link', titulo:'', url:''}];
 
@@ -351,8 +360,12 @@ function renderEdicao(pagina) {
         <input type="text" id="fFoto" value="${pagina.foto_url || ''}" placeholder="https://...">
       </div>
       <div class="field" style="max-width:70px;">
-        <label>cor</label>
+        <label>acento</label>
         <input type="color" id="fCor" value="${pagina.cor_tema || '#FF4F32'}">
+      </div>
+      <div class="field" style="max-width:70px;">
+        <label>fundo</label>
+        <input type="color" id="fFundo" value="${pagina.cor_fundo || '#F7F5F1'}">
       </div>
     </div>
     <div class="field">
@@ -431,6 +444,7 @@ function renderEdicao(pagina) {
       bio: document.getElementById('fBio').value.trim(),
       foto_url: document.getElementById('fFoto').value.trim(),
       cor_tema: document.getElementById('fCor').value,
+      cor_fundo: document.getElementById('fFundo').value,
       blocos: novosBlocos,
     };
 
@@ -445,7 +459,7 @@ function renderEdicao(pagina) {
       if (data.sucesso) {
         msg.textContent = '✓ alterações salvas';
         msg.classList.add('ok');
-        aplicarCorTema(payload.cor_tema);
+        aplicarCorTema(payload.cor_tema, payload.cor_fundo);
       } else {
         msg.textContent = data.erro || 'não foi possível salvar';
         msg.classList.add('err');
