@@ -56,7 +56,7 @@
     content:"";position:absolute;top:0;left:0;right:0;height:3px;
     background:linear-gradient(90deg, var(--accent), transparent 70%);
   }
-  .header-row{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px;}
+  .header-row{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
   .avatar{
     width:64px;height:64px;border-radius:50%;flex-shrink:0;
     background:var(--ink);color:var(--paper);
@@ -73,16 +73,20 @@
     overflow-wrap:break-word;
   }
   .handle{
-    font-family:'Space Grotesk', sans-serif;font-size:19px;font-weight:700;
+    font-family:'Space Grotesk', sans-serif;font-size:17px;font-weight:700;
     color:var(--accent);
     display:inline-flex;align-items:center;gap:5px;
+    overflow-wrap:anywhere;
   }
-  .handle svg{width:15px;height:15px;flex-shrink:0;}
+  .handle svg{width:14px;height:14px;flex-shrink:0;}
   .bio{
     color:var(--graphite);font-size:14.5px;line-height:1.5;
     margin:0 0 22px;white-space:pre-line;
   }
-  .like-btn{
+  .acoes-row{
+    display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;
+  }
+  .like-btn, .action-btn{
     display:flex;align-items:center;gap:6px;flex-shrink:0;
     background:rgba(0,0,0,0.04);
     border:1px solid var(--hairline);
@@ -94,15 +98,14 @@
     color:var(--graphite);
     transition:background .15s ease, color .15s ease, transform .1s ease;
     user-select:none;
-    margin-top:2px;
   }
-  .like-btn:active{transform:scale(0.94);}
+  .like-btn:active, .action-btn:active{transform:scale(0.94);}
   .like-btn.curtido{
     color:var(--like);
     border-color:var(--like);
     background:rgba(255,59,92,0.08);
   }
-  .like-btn svg{width:15px;height:15px;flex-shrink:0;}
+  .like-btn svg, .action-btn svg{width:14px;height:14px;flex-shrink:0;}
   .blocos{display:flex;flex-direction:column;gap:10px;}
   .link-row{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -173,6 +176,13 @@
   }
   .popup-modal .btn-copiar.copiado{background:var(--ok);}
   .popup-row{cursor:pointer;}
+  .qr-img{width:100%;max-width:220px;display:block;margin:0 auto 14px;border-radius:10px;}
+
+  /* --- formulário de fallback (sem slug na URL) --- */
+  .fallback-form .field{margin-bottom:12px;}
+  .fallback-hint{
+    font-size:12px;color:var(--graphite);margin-top:14px;text-align:center;
+  }
   .state-box{
     text-align:center;padding:60px 20px;color:var(--graphite);
     font-family:'IBM Plex Mono', monospace;font-size:13px;
@@ -243,6 +253,15 @@
       <h2 id="popupTitulo"></h2>
       <div class="conteudo" id="popupConteudo"></div>
       <button class="btn-copiar" id="popupCopiar" type="button">copiar</button>
+    </div>
+  </div>
+
+  <div class="popup-overlay" id="qrOverlay">
+    <div class="popup-modal">
+      <button class="fechar" id="qrFechar" type="button">✕</button>
+      <h2>seu QR code</h2>
+      <img class="qr-img" id="qrImagem" alt="QR code do perfil">
+      <a class="btn-copiar" id="qrBaixar" style="display:block;text-align:center;text-decoration:none;" download="qrcode.png">baixar imagem</a>
     </div>
   </div>
 
@@ -384,6 +403,9 @@ function gerarIdBloco() {
   return 'b_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+const ICONE_COMPARTILHAR = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.8M8.6 13.4l6.8 3.8"/></svg>`;
+const ICONE_QR = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M14 21h3M21 14v3M21 21h.01"/></svg>`;
+
 function arquivoLogoParaUrl(url) {
   try {
     const u = url.toLowerCase();
@@ -467,10 +489,44 @@ popupCopiar.addEventListener('click', async () => {
 
 function renderEstadoVazio() {
   cardEl.innerHTML = `
-    <div class="state-box">
-      <div class="big">nenhum @ informado</div>
-      acesse pelo formato who.editoramindwave.com.br/seu-slug
-    </div>`;
+    <div style="text-align:center;margin-bottom:18px;">
+      <div class="big" style="font-family:'Space Grotesk',sans-serif;font-size:19px;color:var(--ink);margin-bottom:4px;">encontrar seu perfil</div>
+      <div style="font-size:12px;color:var(--graphite);">perdeu o link? entre com seu @usuário e token de edição</div>
+    </div>
+    <div class="fallback-form">
+      <div class="field">
+        <label>@usuário</label>
+        <input type="text" id="fbSlug" placeholder="seu-usuario">
+      </div>
+      <div class="field">
+        <label>token</label>
+        <input type="text" id="fbToken" placeholder="tk_xxxxxxxx">
+      </div>
+      <button class="btn btn-save" id="btnFbAcessar" type="button">acessar meu perfil</button>
+      <div class="save-msg" id="fbMsg"></div>
+    </div>
+    <div class="fallback-hint">ou acesse diretamente por <b>who.editoramindwave.com.br/seu-usuario</b></div>
+  `;
+
+  function tentarAcessar() {
+    const slugDigitado = document.getElementById('fbSlug').value.trim().replace(/^@/, '');
+    const tokenDigitado = document.getElementById('fbToken').value.trim();
+    const msg = document.getElementById('fbMsg');
+
+    if (!slugDigitado) {
+      msg.textContent = 'digite seu @usuário';
+      msg.className = 'save-msg err';
+      return;
+    }
+
+    const destino = tokenDigitado
+      ? `${window.location.origin}/${encodeURIComponent(slugDigitado)}?token=${encodeURIComponent(tokenDigitado)}`
+      : `${window.location.origin}/${encodeURIComponent(slugDigitado)}`;
+    window.location.href = destino;
+  }
+
+  document.getElementById('btnFbAcessar').addEventListener('click', tentarAcessar);
+  document.getElementById('fbToken').addEventListener('keydown', (e) => { if (e.key === 'Enter') tentarAcessar(); });
 }
 
 function renderErro(msg) {
@@ -513,6 +569,52 @@ function renderBlocoLeitura(bloco, idx) {
       <span class="label"><span class="icone">${icone}</span>${bloco.titulo}</span>
       <span class="arrow">→</span>
     </a>`;
+}
+
+function configurarBotaoCompartilhar(pagina) {
+  const btn = document.getElementById('btnCompartilhar');
+  const urlPerfil = window.location.origin + '/' + pagina.slug;
+
+  btn.addEventListener('click', async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: pagina.titulo, text: `Confira @${pagina.slug}`, url: urlPerfil });
+      } catch (e) {
+        // usuário cancelou o compartilhamento, sem problema
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(urlPerfil);
+        const textoOriginal = btn.innerHTML;
+        btn.innerHTML = '✓ link copiado';
+        setTimeout(() => { btn.innerHTML = textoOriginal; }, 1800);
+      } catch (e) {
+        // falha silenciosa: não é crítico
+      }
+    }
+  });
+}
+
+function configurarBotaoQrCode(pagina) {
+  const btn = document.getElementById('btnQrCode');
+  const qrOverlay = document.getElementById('qrOverlay');
+  const qrImagem = document.getElementById('qrImagem');
+  const qrBaixar = document.getElementById('qrBaixar');
+  const qrFechar = document.getElementById('qrFechar');
+  const urlPerfil = window.location.origin + '/' + pagina.slug;
+
+  btn.addEventListener('click', () => {
+    const src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(urlPerfil)}`;
+    qrImagem.src = src;
+    qrBaixar.href = src;
+    qrBaixar.download = `qrcode-${pagina.slug}.png`;
+    qrOverlay.classList.add('aberto');
+  });
+
+  qrFechar.addEventListener('click', () => qrOverlay.classList.remove('aberto'));
+  qrOverlay.addEventListener('click', (e) => {
+    if (e.target === qrOverlay) qrOverlay.classList.remove('aberto');
+  });
 }
 
 function configurarBotaoCurtir(pagina) {
@@ -576,10 +678,14 @@ function renderLeitura(pagina) {
         <div class="handle">@${pagina.slug}${pagina.verificado ? SELO_VERIFICADO : ''}</div>
         <h1>${pagina.titulo}</h1>
       </div>
+    </div>
+    <div class="acoes-row">
       <button class="like-btn" id="btnCurtir" type="button">
         <span class="icone-coracao"></span>
         <span id="curtirContador">0</span>
       </button>
+      <button class="action-btn" id="btnCompartilhar" type="button">${ICONE_COMPARTILHAR} compartilhar</button>
+      <button class="action-btn" id="btnQrCode" type="button">${ICONE_QR} qr code</button>
     </div>
     ${pagina.bio ? `<p class="bio">${pagina.bio}</p>` : ''}
     <div class="blocos">${blocosHtml || '<span style="color:var(--graphite);font-size:14px;">nenhum conteúdo cadastrado ainda</span>'}</div>
@@ -598,6 +704,8 @@ function renderLeitura(pagina) {
   });
 
   configurarBotaoCurtir(pagina);
+  configurarBotaoCompartilhar(pagina);
+  configurarBotaoQrCode(pagina);
 }
 
 function montarPreviewHtml(dados) {
@@ -647,7 +755,37 @@ function montarPainelEstatisticas(stats) {
     <div style="display:flex;align-items:flex-end;gap:6px;height:44px;margin-bottom:14px;">${barrasHtml}</div>
     <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--graphite);text-transform:lowercase;margin-bottom:6px;">cliques por link</div>
     ${cliquesHtml}
+    <button class="btn btn-add" id="btnBaixarCsv" type="button" style="margin-top:14px;">⬇ baixar estatísticas (csv)</button>
   `;
+}
+
+function gerarCsvEstatisticas(stats, slugAtual) {
+  function escapar(valor) {
+    const texto = String(valor ?? '');
+    return /[",\n]/.test(texto) ? '"' + texto.replace(/"/g, '""') + '"' : texto;
+  }
+  const linhas = [];
+  linhas.push('Visitas por dia');
+  linhas.push('Data,Total');
+  stats.visitas_semana.forEach(d => linhas.push(`${d.data},${d.total}`));
+  linhas.push('');
+  linhas.push('Cliques por link');
+  linhas.push('Link,Cliques');
+  stats.cliques.forEach(c => linhas.push(`${escapar(c.titulo)},${c.total}`));
+  linhas.push('');
+  linhas.push('Resumo geral');
+  linhas.push(`Curtidas,${stats.likes}`);
+  linhas.push(`Visitas totais,${stats.visitas_total}`);
+
+  const blob = new Blob([linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `estatisticas-${slugAtual}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function renderEdicao(pagina) {
@@ -890,6 +1028,7 @@ function renderEdicao(pagina) {
       const data = await res.json();
       if (data.sucesso) {
         statsConteudo.innerHTML = montarPainelEstatisticas(data);
+        document.getElementById('btnBaixarCsv').addEventListener('click', () => gerarCsvEstatisticas(data, slug));
       } else {
         statsConteudo.textContent = 'não foi possível carregar as estatísticas.';
       }
