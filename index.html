@@ -10,7 +10,8 @@
   :root{
     --ink:#0B0B0C;
     --paper:#F7F5F1;
-    --signal:#FF4F32;
+    --signal:#FF4F32;   /* cor de marca fixa (prompt, footer) */
+    --accent:#FF4F32;   /* cor personalizável pelo usuário (card) */
     --graphite:#6B6B70;
     --hairline:#2A2A2D;
     --ok:#3FA796;
@@ -27,17 +28,12 @@
     justify-content:center;
     padding:24px;
   }
-  .scene{
-    width:100%;
-    max-width:420px;
-  }
+  .scene{width:100%;max-width:420px;}
   .prompt{
     font-family:'IBM Plex Mono', monospace;
     font-size:13px;
     color:var(--graphite);
-    display:flex;
-    align-items:center;
-    gap:8px;
+    display:flex;align-items:center;gap:8px;
     margin-bottom:18px;
     letter-spacing:0.02em;
   }
@@ -58,182 +54,127 @@
   }
   .card::before{
     content:"";
-    position:absolute;
-    top:0;left:0;right:0;
-    height:3px;
-    background:linear-gradient(90deg, var(--signal), transparent 70%);
+    position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg, var(--accent), transparent 70%);
   }
   .avatar{
-    width:64px;height:64px;
-    border-radius:50%;
-    background:var(--ink);
-    color:var(--paper);
+    width:64px;height:64px;border-radius:50%;
+    background:var(--ink);color:var(--paper);
     display:flex;align-items:center;justify-content:center;
     font-family:'Space Grotesk', sans-serif;
     font-weight:700;font-size:22px;
-    margin-bottom:16px;
-    overflow:hidden;
-    flex-shrink:0;
+    margin-bottom:16px;overflow:hidden;flex-shrink:0;
   }
   .avatar img{width:100%;height:100%;object-fit:cover;}
   h1{
     font-family:'Space Grotesk', sans-serif;
-    font-weight:700;
-    font-size:24px;
-    line-height:1.2;
+    font-weight:700;font-size:24px;line-height:1.2;
     margin:0 0 6px;
   }
   .bio{
     color:var(--graphite);
-    font-size:14.5px;
-    line-height:1.5;
+    font-size:14.5px;line-height:1.5;
     margin:0 0 26px;
+    white-space:pre-line;
   }
-  .links{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-  }
+  .blocos{display:flex;flex-direction:column;gap:10px;}
   .link-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    padding:14px 16px;
-    border:1px solid var(--hairline);
-    border-radius:12px;
-    text-decoration:none;
-    color:var(--ink);
-    background:transparent;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 16px;border:1px solid var(--hairline);border-radius:12px;
+    text-decoration:none;color:var(--ink);background:transparent;
     transition:transform .15s ease, background .15s ease, border-color .15s ease;
-    font-weight:500;
-    font-size:15px;
+    font-weight:500;font-size:15px;
   }
+  .link-row .label{display:flex;align-items:center;gap:10px;}
+  .link-row .icone{font-size:17px;line-height:1;}
   .link-row:hover{
-    background:var(--ink);
-    color:var(--paper);
-    border-color:var(--ink);
+    background:var(--accent);color:var(--paper);border-color:var(--accent);
     transform:translateX(2px);
   }
-  .link-row .arrow{
-    font-family:'IBM Plex Mono', monospace;
-    opacity:0.5;
+  .link-row .arrow{font-family:'IBM Plex Mono', monospace;opacity:0.5;}
+  .texto-bloco{
+    padding:14px 16px;
+    border:1px dashed var(--hairline);
+    border-radius:12px;
+    font-size:14px;
+    line-height:1.5;
+    color:var(--ink);
+    white-space:pre-line;
+    background:rgba(0,0,0,0.02);
   }
   .footer-tag{
-    text-align:center;
-    margin-top:22px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    color:var(--graphite);
-    letter-spacing:0.05em;
+    text-align:center;margin-top:22px;
+    font-family:'IBM Plex Mono', monospace;font-size:11px;
+    color:var(--graphite);letter-spacing:0.05em;
   }
   .footer-tag a{color:var(--graphite);}
-
-  /* estados */
   .state-box{
-    text-align:center;
-    padding:60px 20px;
-    color:var(--graphite);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:13px;
+    text-align:center;padding:60px 20px;color:var(--graphite);
+    font-family:'IBM Plex Mono', monospace;font-size:13px;
   }
   .state-box .big{
-    font-family:'Space Grotesk', sans-serif;
-    color:var(--paper);
-    font-size:20px;
-    margin-bottom:8px;
+    font-family:'Space Grotesk', sans-serif;color:var(--paper);
+    font-size:20px;margin-bottom:8px;
   }
-
-  /* modo edicao */
   .edit-banner{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    background:var(--signal);
-    color:var(--ink);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12px;
-    font-weight:500;
-    padding:8px 14px;
-    border-radius:999px;
-    margin-bottom:16px;
-    width:fit-content;
+    display:flex;align-items:center;gap:8px;
+    background:var(--accent);color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;font-size:12px;font-weight:500;
+    padding:8px 14px;border-radius:999px;margin-bottom:16px;width:fit-content;
   }
-  .field{
-    margin-bottom:14px;
-  }
+  .field{margin-bottom:14px;}
   .field label{
-    display:block;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px;
-    color:var(--graphite);
-    margin-bottom:5px;
-    text-transform:lowercase;
+    display:block;font-family:'IBM Plex Mono', monospace;
+    font-size:11px;color:var(--graphite);margin-bottom:5px;text-transform:lowercase;
   }
   .field input, .field textarea{
-    width:100%;
-    border:1px solid var(--hairline);
-    border-radius:10px;
-    padding:10px 12px;
-    font-family:'IBM Plex Sans', sans-serif;
-    font-size:14px;
-    color:var(--ink);
-    background:#fff;
-    resize:vertical;
+    width:100%;border:1px solid var(--hairline);border-radius:10px;
+    padding:10px 12px;font-family:'IBM Plex Sans', sans-serif;font-size:14px;
+    color:var(--ink);background:#fff;resize:vertical;
+  }
+  .field input[type=color]{
+    padding:4px;height:42px;cursor:pointer;
   }
   .field input:focus, .field textarea:focus{
-    outline:2px solid var(--signal);
-    outline-offset:1px;
+    outline:2px solid var(--accent);outline-offset:1px;
   }
-  .link-edit-row{
-    display:flex;
-    gap:8px;
-    margin-bottom:8px;
+  .field-row{display:flex;gap:10px;align-items:flex-end;}
+  .field-row .field{flex:1;margin-bottom:0;}
+  .bloco-edit-item{
+    border:1px solid var(--hairline);border-radius:10px;
+    padding:10px;margin-bottom:8px;
   }
+  .bloco-edit-item .tipo-row{
+    display:flex;gap:8px;align-items:center;margin-bottom:8px;
+  }
+  .link-edit-row{display:flex;gap:8px;}
   .link-edit-row input{flex:1;}
   .btn{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12px;
-    border:none;
-    border-radius:10px;
-    padding:10px 16px;
-    cursor:pointer;
-    font-weight:500;
+    font-family:'IBM Plex Mono', monospace;font-size:12px;border:none;
+    border-radius:10px;padding:10px 16px;cursor:pointer;font-weight:500;
   }
   .btn-remove{
-    background:transparent;
-    color:var(--graphite);
-    border:1px solid var(--hairline);
-    padding:0 12px;
+    background:transparent;color:var(--graphite);
+    border:1px solid var(--hairline);padding:0 12px;
   }
   .btn-add{
-    background:transparent;
-    color:var(--ink);
-    border:1px dashed var(--hairline);
-    width:100%;
-    margin-top:4px;
+    background:transparent;color:var(--ink);
+    border:1px dashed var(--hairline);width:100%;margin-top:4px;
   }
+  .btn-add-row{display:flex;gap:8px;margin-top:4px;}
+  .btn-add-row .btn-add{margin-top:0;}
   .btn-save{
-    background:var(--ink);
-    color:var(--paper);
-    width:100%;
-    margin-top:18px;
-    padding:13px;
-    font-size:13px;
+    background:var(--ink);color:var(--paper);width:100%;margin-top:18px;
+    padding:13px;font-size:13px;
   }
   .btn-save:disabled{opacity:0.5;cursor:default;}
   .save-msg{
-    text-align:center;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12px;
-    margin-top:10px;
+    text-align:center;font-family:'IBM Plex Mono', monospace;
+    font-size:12px;margin-top:10px;
   }
   .save-msg.ok{color:var(--ok);}
-  .save-msg.err{color:var(--signal);}
-
-  @media (prefers-reduced-motion: reduce){
-    .link-row{transition:none;}
-  }
+  .save-msg.err{color:var(--accent);}
+  @media (prefers-reduced-motion: reduce){.link-row{transition:none;}}
 </style>
 </head>
 <body>
@@ -248,28 +189,54 @@
     <div class="footer-tag">feito com ❤︎︎ <a href="https://editoramindwave.com.br" target="_blank" rel="noopener">mindwave</a></div>
   </div>
 
+
 <script>
 const API_BASE = 'https://editoramindwave.com.br/api';
-
+ 
 function getSlugETokenDaURL() {
   const params = new URLSearchParams(window.location.search);
-  const redirected = params.get('p'); // vindo do truque do 404.html
+  const redirected = params.get('p');
   let path = redirected ? redirected : window.location.pathname;
-  path = path.replace(/^\/+|\/+$/g, ''); // tira barras nas pontas
+  path = path.replace(/^\/+|\/+$/g, '');
   const slug = path.split('/')[0] || '';
   const token = params.get('token') || '';
   return { slug, token };
 }
-
+ 
 const { slug, token } = getSlugETokenDaURL();
 const cardEl = document.getElementById('card');
 const promptEl = document.getElementById('promptText');
-promptEl.textContent = 'who://' + (slug || '…');
-
+promptEl.textContent = 'whois://' + (slug || '…');
+ 
 function iniciais(nome) {
   return (nome || '?').trim().split(/\s+/).slice(0,2).map(p => p[0]).join('').toUpperCase();
 }
-
+ 
+function iconeParaUrl(url) {
+  try {
+    const u = url.toLowerCase();
+    if (u.includes('wa.me') || u.includes('whatsapp.com')) return '💬';
+    if (u.includes('instagram.com')) return '📷';
+    if (u.includes('youtube.com') || u.includes('youtu.be')) return '▶️';
+    if (u.includes('tiktok.com')) return '🎵';
+    if (u.includes('twitter.com') || u.includes('x.com')) return '🐦';
+    if (u.includes('facebook.com')) return '📘';
+    if (u.includes('linkedin.com')) return '💼';
+    if (u.includes('github.com')) return '🐙';
+    if (u.includes('t.me') || u.includes('telegram.')) return '✈️';
+    if (u.includes('spotify.com')) return '🎧';
+    if (u.startsWith('mailto:')) return '✉️';
+    if (u.includes('.pdf')) return '📄';
+    return '🔗';
+  } catch (e) {
+    return '🔗';
+  }
+}
+ 
+function aplicarCorTema(hex) {
+  document.documentElement.style.setProperty('--accent', hex || '#FF4F32');
+}
+ 
 function renderEstadoVazio() {
   cardEl.innerHTML = `
     <div class="state-box">
@@ -277,7 +244,7 @@ function renderEstadoVazio() {
       acesse pelo formato who.editoramindwave.com.br/seu-slug
     </div>`;
 }
-
+ 
 function renderErro(msg) {
   cardEl.innerHTML = `
     <div class="state-box">
@@ -285,28 +252,40 @@ function renderErro(msg) {
       ${msg || 'esse @ ainda não existe na base'}
     </div>`;
 }
-
+ 
+function renderBlocoLeitura(bloco) {
+  if (bloco.tipo === 'texto') {
+    return `<div class="texto-bloco">${bloco.conteudo}</div>`;
+  }
+  const icone = iconeParaUrl(bloco.url);
+  return `
+    <a class="link-row" href="${bloco.url}" target="_blank" rel="noopener">
+      <span class="label"><span class="icone">${icone}</span>${bloco.titulo}</span>
+      <span class="arrow">→</span>
+    </a>`;
+}
+ 
 function renderLeitura(pagina) {
-  const linksHtml = (pagina.links || []).map(l => `
-    <a class="link-row" href="${l.url}" target="_blank" rel="noopener">
-      <span>${l.titulo}</span><span class="arrow">→</span>
-    </a>`).join('');
-
+  aplicarCorTema(pagina.cor_tema);
+ 
+  const blocosHtml = (pagina.blocos || []).map(renderBlocoLeitura).join('');
   const fotoHtml = pagina.foto_url
     ? `<img src="${pagina.foto_url}" alt="${pagina.titulo}">`
     : iniciais(pagina.titulo);
-
+ 
   cardEl.innerHTML = `
     <div class="avatar">${fotoHtml}</div>
     <h1>${pagina.titulo}</h1>
     ${pagina.bio ? `<p class="bio">${pagina.bio}</p>` : ''}
-    <div class="links">${linksHtml || '<span style="color:var(--graphite);font-size:14px;">nenhum link cadastrado ainda</span>'}</div>
+    <div class="blocos">${blocosHtml || '<span style="color:var(--graphite);font-size:14px;">nenhum conteúdo cadastrado ainda</span>'}</div>
   `;
 }
-
+ 
 function renderEdicao(pagina) {
-  const links = pagina.links && pagina.links.length ? pagina.links : [{titulo:'', url:''}];
-
+  aplicarCorTema(pagina.cor_tema);
+ 
+  const blocos = pagina.blocos && pagina.blocos.length ? pagina.blocos : [{tipo:'link', titulo:'', url:''}];
+ 
   cardEl.innerHTML = `
     <div class="edit-banner">✎ modo edição</div>
     <div class="field">
@@ -314,40 +293,68 @@ function renderEdicao(pagina) {
       <input type="text" id="fTitulo" value="${pagina.titulo || ''}">
     </div>
     <div class="field">
-      <label>bio</label>
-      <textarea id="fBio" rows="2">${pagina.bio || ''}</textarea>
+      <label>bio (use enter para pular linha)</label>
+      <textarea id="fBio" rows="3">${pagina.bio || ''}</textarea>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>foto (url)</label>
+        <input type="text" id="fFoto" value="${pagina.foto_url || ''}" placeholder="https://...">
+      </div>
+      <div class="field" style="max-width:70px;">
+        <label>cor</label>
+        <input type="color" id="fCor" value="${pagina.cor_tema || '#FF4F32'}">
+      </div>
     </div>
     <div class="field">
-      <label>foto (url)</label>
-      <input type="text" id="fFoto" value="${pagina.foto_url || ''}" placeholder="https://...">
-    </div>
-    <div class="field">
-      <label>links</label>
-      <div id="linksEditArea"></div>
-      <button class="btn btn-add" id="btnAddLink" type="button">+ adicionar link</button>
+      <label>conteúdo (links e textos, nessa ordem)</label>
+      <div id="blocosEditArea"></div>
+      <div class="btn-add-row">
+        <button class="btn btn-add" id="btnAddLink" type="button">+ link</button>
+        <button class="btn btn-add" id="btnAddTexto" type="button">+ texto</button>
+      </div>
     </div>
     <button class="btn btn-save" id="btnSalvar" type="button">salvar alterações</button>
     <div class="save-msg" id="saveMsg"></div>
   `;
-
-  const linksArea = document.getElementById('linksEditArea');
-
-  function addLinkRow(titulo='', url='') {
+ 
+  const blocosArea = document.getElementById('blocosEditArea');
+ 
+  function addBlocoRow(tipo, dados) {
+    dados = dados || {};
     const row = document.createElement('div');
-    row.className = 'link-edit-row';
-    row.innerHTML = `
-      <input type="text" placeholder="título" class="link-titulo" value="${titulo}">
-      <input type="text" placeholder="url" class="link-url" value="${url}">
-      <button class="btn btn-remove" type="button">✕</button>
-    `;
+    row.className = 'bloco-edit-item';
+    row.dataset.tipo = tipo;
+ 
+    if (tipo === 'texto') {
+      row.innerHTML = `
+        <div class="tipo-row">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">texto</span>
+          <button class="btn btn-remove" type="button" style="margin-left:auto;">✕</button>
+        </div>
+        <textarea class="bloco-conteudo" rows="2" placeholder="escreva um aviso, anúncio, etc.">${dados.conteudo || ''}</textarea>
+      `;
+    } else {
+      row.innerHTML = `
+        <div class="tipo-row">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">link</span>
+          <button class="btn btn-remove" type="button" style="margin-left:auto;">✕</button>
+        </div>
+        <div class="link-edit-row">
+          <input type="text" placeholder="título" class="bloco-titulo" value="${dados.titulo || ''}">
+          <input type="text" placeholder="url" class="bloco-url" value="${dados.url || ''}">
+        </div>
+      `;
+    }
     row.querySelector('.btn-remove').addEventListener('click', () => row.remove());
-    linksArea.appendChild(row);
+    blocosArea.appendChild(row);
   }
-
-  links.forEach(l => addLinkRow(l.titulo, l.url));
-
-  document.getElementById('btnAddLink').addEventListener('click', () => addLinkRow());
-
+ 
+  blocos.forEach(b => addBlocoRow(b.tipo || 'link', b));
+ 
+  document.getElementById('btnAddLink').addEventListener('click', () => addBlocoRow('link'));
+  document.getElementById('btnAddTexto').addEventListener('click', () => addBlocoRow('texto'));
+ 
   document.getElementById('btnSalvar').addEventListener('click', async () => {
     const btn = document.getElementById('btnSalvar');
     const msg = document.getElementById('saveMsg');
@@ -355,23 +362,29 @@ function renderEdicao(pagina) {
     btn.textContent = 'salvando…';
     msg.textContent = '';
     msg.className = 'save-msg';
-
-    const novosLinks = Array.from(linksArea.querySelectorAll('.link-edit-row'))
-      .map(row => ({
-        titulo: row.querySelector('.link-titulo').value.trim(),
-        url: row.querySelector('.link-url').value.trim(),
-      }))
-      .filter(l => l.titulo && l.url);
-
+ 
+    const novosBlocos = Array.from(blocosArea.querySelectorAll('.bloco-edit-item'))
+      .map(row => {
+        if (row.dataset.tipo === 'texto') {
+          const conteudo = row.querySelector('.bloco-conteudo').value.trim();
+          return conteudo ? { tipo: 'texto', conteudo } : null;
+        }
+        const titulo = row.querySelector('.bloco-titulo').value.trim();
+        const url = row.querySelector('.bloco-url').value.trim();
+        return (titulo && url) ? { tipo: 'link', titulo, url } : null;
+      })
+      .filter(Boolean);
+ 
     const payload = {
       slug,
       token,
       titulo: document.getElementById('fTitulo').value.trim(),
       bio: document.getElementById('fBio').value.trim(),
       foto_url: document.getElementById('fFoto').value.trim(),
-      links: novosLinks,
+      cor_tema: document.getElementById('fCor').value,
+      blocos: novosBlocos,
     };
-
+ 
     try {
       const res = await fetch(`${API_BASE}/salvar.php`, {
         method: 'POST',
@@ -379,10 +392,11 @@ function renderEdicao(pagina) {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-
+ 
       if (data.sucesso) {
         msg.textContent = '✓ alterações salvas';
         msg.classList.add('ok');
+        aplicarCorTema(payload.cor_tema);
       } else {
         msg.textContent = data.erro || 'não foi possível salvar';
         msg.classList.add('err');
@@ -396,22 +410,22 @@ function renderEdicao(pagina) {
     }
   });
 }
-
+ 
 async function iniciar() {
   if (!slug) {
     renderEstadoVazio();
     return;
   }
-
+ 
   try {
     const res = await fetch(`${API_BASE}/buscar.php?slug=${encodeURIComponent(slug)}`);
     const data = await res.json();
-
+ 
     if (!data.sucesso) {
       renderErro(data.erro);
       return;
     }
-
+ 
     if (token) {
       renderEdicao(data.pagina);
     } else {
@@ -421,7 +435,7 @@ async function iniciar() {
     renderErro('não foi possível conectar à api. tenta de novo em instantes.');
   }
 }
-
+ 
 iniciar();
 </script>
 </body>
