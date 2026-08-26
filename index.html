@@ -111,6 +111,42 @@
     font-size:11px;color:var(--graphite);letter-spacing:0.05em;
   }
   .footer-tag a{color:var(--graphite);}
+
+  /* --- modal de pop-up --- */
+  .popup-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,0.6);
+    display:none;align-items:center;justify-content:center;
+    padding:24px;z-index:1000;
+  }
+  .popup-overlay.aberto{display:flex;}
+  .popup-modal{
+    background:var(--paper);color:var(--ink);
+    border-radius:16px;padding:24px;max-width:360px;width:100%;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);
+    position:relative;
+  }
+  .popup-modal .fechar{
+    position:absolute;top:12px;right:12px;
+    background:none;border:none;cursor:pointer;
+    font-size:18px;color:var(--graphite);line-height:1;padding:4px;
+  }
+  .popup-modal h2{
+    font-family:'Space Grotesk', sans-serif;font-size:18px;
+    margin:0 0 12px;padding-right:20px;
+  }
+  .popup-modal .conteudo{
+    font-family:'IBM Plex Mono', monospace;font-size:14px;
+    white-space:pre-wrap;word-break:break-word;
+    background:rgba(0,0,0,0.04);border-radius:10px;
+    padding:14px;margin-bottom:14px;line-height:1.6;
+  }
+  .popup-modal .btn-copiar{
+    width:100%;background:var(--ink);color:var(--paper);
+    font-family:'IBM Plex Mono', monospace;font-size:13px;
+    border:none;border-radius:10px;padding:11px;cursor:pointer;
+  }
+  .popup-modal .btn-copiar.copiado{background:var(--ok);}
+  .popup-row{cursor:pointer;}
   .state-box{
     text-align:center;padding:60px 20px;color:var(--graphite);
     font-family:'IBM Plex Mono', monospace;font-size:13px;
@@ -170,6 +206,15 @@
     <div class="footer-tag">feito com ❤︎ <a href="https://editoramindwave.com.br" target="_blank" rel="noopener">mindwave</a></div>
   </div>
 
+  <div class="popup-overlay" id="popupOverlay">
+    <div class="popup-modal">
+      <button class="fechar" id="popupFechar" type="button">✕</button>
+      <h2 id="popupTitulo"></h2>
+      <div class="conteudo" id="popupConteudo"></div>
+      <button class="btn-copiar" id="popupCopiar" type="button">copiar</button>
+    </div>
+  </div>
+
 <script>
 const API_BASE = 'https://editoramindwave.com.br/api';
 
@@ -193,6 +238,9 @@ function iniciais(nome) {
 }
 
 const LOGOS_BASE = 'https://editoramindwave.com.br/api/libs/logos';
+
+// Ícone genérico para blocos do tipo "pop-up" (não é uma rede social)
+const ICONE_POPUP = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12h8M12 8v8"/></svg>`;
 
 function arquivoLogoParaUrl(url) {
   try {
@@ -237,6 +285,44 @@ function aplicarCorTema(hexAccent, hexFundo) {
   document.documentElement.style.setProperty('--paper', hexFundo || '#F7F5F1');
 }
 
+// --- Modal de pop-up (senha de wifi, pix, etc.) ---
+const popupOverlay = document.getElementById('popupOverlay');
+const popupTitulo = document.getElementById('popupTitulo');
+const popupConteudo = document.getElementById('popupConteudo');
+const popupCopiar = document.getElementById('popupCopiar');
+const popupFechar = document.getElementById('popupFechar');
+
+function abrirPopup(titulo, conteudo, copiavel) {
+  popupTitulo.textContent = titulo;
+  popupConteudo.textContent = conteudo;
+  popupCopiar.style.display = copiavel === false ? 'none' : 'block';
+  popupCopiar.textContent = 'copiar';
+  popupCopiar.classList.remove('copiado');
+  popupOverlay.classList.add('aberto');
+}
+
+function fecharPopup() {
+  popupOverlay.classList.remove('aberto');
+}
+
+popupFechar.addEventListener('click', fecharPopup);
+popupOverlay.addEventListener('click', (e) => {
+  if (e.target === popupOverlay) fecharPopup();
+});
+popupCopiar.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(popupConteudo.textContent);
+    popupCopiar.textContent = '✓ copiado';
+    popupCopiar.classList.add('copiado');
+    setTimeout(() => {
+      popupCopiar.textContent = 'copiar';
+      popupCopiar.classList.remove('copiado');
+    }, 1500);
+  } catch (e) {
+    popupCopiar.textContent = 'não foi possível copiar';
+  }
+});
+
 function renderEstadoVazio() {
   cardEl.innerHTML = `
     <div class="state-box">
@@ -253,9 +339,16 @@ function renderErro(msg) {
     </div>`;
 }
 
-function renderBlocoLeitura(bloco) {
+function renderBlocoLeitura(bloco, idx) {
   if (bloco.tipo === 'texto') {
     return `<div class="texto-bloco">${bloco.conteudo}</div>`;
+  }
+  if (bloco.tipo === 'popup') {
+    return `
+      <div class="link-row popup-row" data-popup-idx="${idx}">
+        <span class="label"><span class="icone">${ICONE_POPUP}</span>${bloco.titulo}</span>
+        <span class="arrow">→</span>
+      </div>`;
   }
   const icone = iconeImgParaUrl(bloco.url);
   return `
@@ -314,7 +407,7 @@ function configurarBotaoCurtir(pagina) {
 function renderLeitura(pagina) {
   aplicarCorTema(pagina.cor_tema, pagina.cor_fundo);
 
-  const blocosHtml = (pagina.blocos || []).map(renderBlocoLeitura).join('');
+  const blocosHtml = (pagina.blocos || []).map((b, i) => renderBlocoLeitura(b, i)).join('');
   const fotoHtml = pagina.foto_url
     ? `<img src="${pagina.foto_url}" alt="${pagina.titulo}">`
     : iniciais(pagina.titulo);
@@ -334,6 +427,12 @@ function renderLeitura(pagina) {
     ${pagina.bio ? `<p class="bio">${pagina.bio}</p>` : ''}
     <div class="blocos">${blocosHtml || '<span style="color:var(--graphite);font-size:14px;">nenhum conteúdo cadastrado ainda</span>'}</div>
   `;
+
+  cardEl.querySelectorAll('.popup-row').forEach(el => {
+    const idx = parseInt(el.dataset.popupIdx, 10);
+    const bloco = pagina.blocos[idx];
+    el.addEventListener('click', () => abrirPopup(bloco.titulo, bloco.conteudo, bloco.copiavel));
+  });
 
   configurarBotaoCurtir(pagina);
 }
@@ -374,6 +473,7 @@ function renderEdicao(pagina) {
       <div class="btn-add-row">
         <button class="btn btn-add" id="btnAddLink" type="button">+ link</button>
         <button class="btn btn-add" id="btnAddTexto" type="button">+ texto</button>
+        <button class="btn btn-add" id="btnAddPopup" type="button">+ pop-up</button>
       </div>
     </div>
     <button class="btn btn-save" id="btnSalvar" type="button">salvar alterações</button>
@@ -396,6 +496,19 @@ function renderEdicao(pagina) {
         </div>
         <textarea class="bloco-conteudo" rows="2" placeholder="escreva um aviso, anúncio, etc.">${dados.conteudo || ''}</textarea>
       `;
+    } else if (tipo === 'popup') {
+      const copiavelChecked = dados.copiavel === false ? '' : 'checked';
+      row.innerHTML = `
+        <div class="tipo-row">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">pop-up</span>
+          <button class="btn btn-remove" type="button" style="margin-left:auto;">✕</button>
+        </div>
+        <input type="text" placeholder="título (ex: Senha do wi-fi)" class="bloco-titulo" value="${dados.titulo || ''}" style="margin-bottom:8px;">
+        <textarea class="bloco-conteudo" rows="2" placeholder="conteúdo que vai aparecer na janela">${dados.conteudo || ''}</textarea>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">
+          <input type="checkbox" class="bloco-copiavel" ${copiavelChecked}> permitir copiar
+        </label>
+      `;
     } else {
       row.innerHTML = `
         <div class="tipo-row">
@@ -416,6 +529,7 @@ function renderEdicao(pagina) {
 
   document.getElementById('btnAddLink').addEventListener('click', () => addBlocoRow('link'));
   document.getElementById('btnAddTexto').addEventListener('click', () => addBlocoRow('texto'));
+  document.getElementById('btnAddPopup').addEventListener('click', () => addBlocoRow('popup'));
 
   document.getElementById('btnSalvar').addEventListener('click', async () => {
     const btn = document.getElementById('btnSalvar');
@@ -430,6 +544,12 @@ function renderEdicao(pagina) {
         if (row.dataset.tipo === 'texto') {
           const conteudo = row.querySelector('.bloco-conteudo').value.trim();
           return conteudo ? { tipo: 'texto', conteudo } : null;
+        }
+        if (row.dataset.tipo === 'popup') {
+          const titulo = row.querySelector('.bloco-titulo').value.trim();
+          const conteudo = row.querySelector('.bloco-conteudo').value.trim();
+          const copiavel = row.querySelector('.bloco-copiavel').checked;
+          return (titulo && conteudo) ? { tipo: 'popup', titulo, conteudo, copiavel } : null;
         }
         const titulo = row.querySelector('.bloco-titulo').value.trim();
         const url = row.querySelector('.bloco-url').value.trim();
