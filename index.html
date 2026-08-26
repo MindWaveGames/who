@@ -755,7 +755,7 @@ function montarPainelEstatisticas(stats) {
     <div style="display:flex;align-items:flex-end;gap:6px;height:44px;margin-bottom:14px;">${barrasHtml}</div>
     <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--graphite);text-transform:lowercase;margin-bottom:6px;">cliques por link</div>
     ${cliquesHtml}
-    <button class="btn btn-add" id="btnBaixarCsv" type="button" style="margin-top:14px;">⬇ baixar estatísticas (csv)</button>
+    <button class="btn btn-add" id="btnBaixarCsv" type="button" style="margin-top:14px;">Baixar Estatísticas (csv)</button>
   `;
 }
 
@@ -800,7 +800,7 @@ function renderEdicao(pagina) {
     <div class="handle" style="margin-bottom:14px;">@${pagina.slug}${pagina.verificado ? SELO_VERIFICADO : ''}</div>
 
     <div id="statsPanel" style="border:1px solid var(--hairline);border-radius:12px;padding:14px;margin-bottom:18px;">
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;">📊 estatísticas</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;">Estatísticas</div>
       <div id="statsConteudo" style="color:var(--graphite);font-size:12px;font-family:'IBM Plex Mono',monospace;">carregando…</div>
     </div>
 
@@ -1012,7 +1012,7 @@ function renderEdicao(pagina) {
   btnTogglePreview.addEventListener('click', () => {
     previewAtivo = !previewAtivo;
     previewWrap.style.display = previewAtivo ? 'block' : 'none';
-    btnTogglePreview.textContent = previewAtivo ? '👁 esconder preview ao vivo' : '👁 mostrar preview ao vivo';
+    btnTogglePreview.textContent = previewAtivo ? 'esconder preview ao vivo' : 'mostrar preview ao vivo';
     if (previewAtivo) atualizarPreview();
   });
 
