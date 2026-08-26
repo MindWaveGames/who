@@ -242,6 +242,22 @@ const LOGOS_BASE = 'https://editoramindwave.com.br/api/libs/logos';
 // Ícone genérico para blocos do tipo "pop-up" (não é uma rede social)
 const ICONE_POPUP = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12h8M12 8v8"/></svg>`;
 
+function registrarClique(slugAtual, blocoId) {
+  try {
+    const dados = JSON.stringify({ slug: slugAtual, bloco_id: blocoId });
+    const blob = new Blob([dados], { type: 'application/json' });
+    navigator.sendBeacon(`${API_BASE}/registrar_clique.php`, blob);
+  } catch (e) {
+    // rastreamento é best-effort, nunca deve travar a navegação do usuário
+  }
+}
+
+const SELO_VERIFICADO = `<svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--accent);width:16px;height:16px;display:inline-block;vertical-align:-2px;margin-left:4px;"><path d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/><path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="var(--paper)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function gerarIdBloco() {
+  return 'b_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
 function arquivoLogoParaUrl(url) {
   try {
     const u = url.toLowerCase();
@@ -352,7 +368,7 @@ function renderBlocoLeitura(bloco, idx) {
   }
   const icone = iconeImgParaUrl(bloco.url);
   return `
-    <a class="link-row" href="${bloco.url}" target="_blank" rel="noopener">
+    <a class="link-row" href="${bloco.url}" target="_blank" rel="noopener" data-bloco-id="${bloco.id || ''}">
       <span class="label"><span class="icone">${icone}</span>${bloco.titulo}</span>
       <span class="arrow">→</span>
     </a>`;
@@ -417,7 +433,7 @@ function renderLeitura(pagina) {
       <div class="avatar">${fotoHtml}</div>
       <div class="header-text">
         <h1>${pagina.titulo}</h1>
-        <div class="handle">@${pagina.slug}</div>
+        <div class="handle">@${pagina.slug}${pagina.verificado ? SELO_VERIFICADO : ''}</div>
       </div>
       <button class="like-btn" id="btnCurtir" type="button">
         <span class="icone-coracao"></span>
@@ -434,17 +450,81 @@ function renderLeitura(pagina) {
     el.addEventListener('click', () => abrirPopup(bloco.titulo, bloco.conteudo, bloco.copiavel));
   });
 
+  cardEl.querySelectorAll('.link-row[data-bloco-id]').forEach(el => {
+    const blocoId = el.dataset.blocoId;
+    if (!blocoId) return;
+    el.addEventListener('click', () => registrarClique(pagina.slug, blocoId));
+  });
+
   configurarBotaoCurtir(pagina);
+}
+
+function montarPreviewHtml(dados) {
+  const blocosHtml = (dados.blocos || []).map((b, i) => renderBlocoLeitura(b, i)).join('');
+  const fotoHtml = dados.foto_url
+    ? `<img src="${dados.foto_url}" alt="">`
+    : iniciais(dados.titulo);
+  return `
+    <div class="header-row">
+      <div class="avatar">${fotoHtml}</div>
+      <div class="header-text">
+        <h1>${dados.titulo || '(sem título)'}</h1>
+        <div class="handle">@${dados.slug}${dados.verificado ? SELO_VERIFICADO : ''}</div>
+      </div>
+    </div>
+    ${dados.bio ? `<p class="bio">${dados.bio}</p>` : ''}
+    <div class="blocos">${blocosHtml || '<span style="color:var(--graphite);font-size:14px;">nenhum conteúdo cadastrado ainda</span>'}</div>
+  `;
+}
+
+function montarPainelEstatisticas(stats) {
+  const maxVisita = Math.max(1, ...stats.visitas_semana.map(d => d.total));
+  const barrasHtml = stats.visitas_semana.map(d => {
+    const altura = Math.round((d.total / maxVisita) * 28) + 4;
+    const diaLabel = new Date(d.data + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0,3);
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+        <div style="width:100%;max-width:18px;height:${altura}px;background:var(--accent);border-radius:3px 3px 0 0;" title="${d.total} visitas"></div>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--graphite);">${diaLabel}</span>
+      </div>`;
+  }).join('');
+
+  const cliquesHtml = stats.cliques.length
+    ? stats.cliques.slice(0, 5).map(c => `
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;">
+          <span style="color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;">${c.titulo}</span>
+          <span style="color:var(--graphite);font-family:'IBM Plex Mono',monospace;">${c.total}</span>
+        </div>`).join('')
+    : `<span style="color:var(--graphite);font-size:12px;">nenhum clique registrado ainda</span>`;
+
+  return `
+    <div style="display:flex;gap:16px;margin-bottom:10px;">
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">${stats.likes}</div><div style="font-size:10px;color:var(--graphite);font-family:'IBM Plex Mono',monospace;">curtidas</div></div>
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">${stats.visitas_total}</div><div style="font-size:10px;color:var(--graphite);font-family:'IBM Plex Mono',monospace;">visitas (total)</div></div>
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">${stats.total_semana}</div><div style="font-size:10px;color:var(--graphite);font-family:'IBM Plex Mono',monospace;">últimos 7 dias</div></div>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:6px;height:44px;margin-bottom:14px;">${barrasHtml}</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--graphite);text-transform:lowercase;margin-bottom:6px;">cliques por link</div>
+    ${cliquesHtml}
+  `;
 }
 
 function renderEdicao(pagina) {
   aplicarCorTema(pagina.cor_tema, pagina.cor_fundo);
 
   const blocos = pagina.blocos && pagina.blocos.length ? pagina.blocos : [{tipo:'link', titulo:'', url:''}];
+  // Garante que todo bloco tenha um id estável (necessário pra rastrear cliques)
+  blocos.forEach(b => { if (!b.id) b.id = gerarIdBloco(); });
 
   cardEl.innerHTML = `
     <div class="edit-banner">✎ modo edição</div>
-    <div class="handle" style="margin-bottom:14px;">@${pagina.slug}</div>
+    <div class="handle" style="margin-bottom:14px;">@${pagina.slug}${pagina.verificado ? SELO_VERIFICADO : ''}</div>
+
+    <div id="statsPanel" style="border:1px solid var(--hairline);border-radius:12px;padding:14px;margin-bottom:18px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;">📊 estatísticas</div>
+      <div id="statsConteudo" style="color:var(--graphite);font-size:12px;font-family:'IBM Plex Mono',monospace;">carregando…</div>
+    </div>
+
     <div class="field">
       <label>título</label>
       <input type="text" id="fTitulo" value="${pagina.titulo || ''}">
@@ -468,7 +548,7 @@ function renderEdicao(pagina) {
       </div>
     </div>
     <div class="field">
-      <label>conteúdo (links e textos, nessa ordem)</label>
+      <label>conteúdo (arraste pelo ⠿ pra reordenar)</label>
       <div id="blocosEditArea"></div>
       <div class="btn-add-row">
         <button class="btn btn-add" id="btnAddLink" type="button">+ link</button>
@@ -478,19 +558,32 @@ function renderEdicao(pagina) {
     </div>
     <button class="btn btn-save" id="btnSalvar" type="button">salvar alterações</button>
     <div class="save-msg" id="saveMsg"></div>
+
+    <div style="margin-top:26px;">
+      <button class="btn btn-add" id="btnTogglePreview" type="button" style="width:100%;">👁 mostrar preview ao vivo</button>
+      <div id="previewWrap" style="display:none;margin-top:14px;padding:20px;border:1px dashed var(--hairline);border-radius:14px;background:rgba(0,0,0,0.015);">
+        <div id="previewConteudo"></div>
+      </div>
+    </div>
   `;
 
   const blocosArea = document.getElementById('blocosEditArea');
+  let draggedRow = null;
 
   function addBlocoRow(tipo, dados) {
     dados = dados || {};
     const row = document.createElement('div');
     row.className = 'bloco-edit-item';
     row.dataset.tipo = tipo;
+    row.dataset.blocoId = dados.id || gerarIdBloco();
+    row.draggable = true;
+
+    const handleDrag = `<span class="drag-handle" style="cursor:grab;color:var(--graphite);margin-right:6px;user-select:none;">⠿</span>`;
 
     if (tipo === 'texto') {
       row.innerHTML = `
         <div class="tipo-row">
+          ${handleDrag}
           <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">texto</span>
           <button class="btn btn-remove" type="button" style="margin-left:auto;">✕</button>
         </div>
@@ -500,6 +593,7 @@ function renderEdicao(pagina) {
       const copiavelChecked = dados.copiavel === false ? '' : 'checked';
       row.innerHTML = `
         <div class="tipo-row">
+          ${handleDrag}
           <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">pop-up</span>
           <button class="btn btn-remove" type="button" style="margin-left:auto;">✕</button>
         </div>
@@ -512,6 +606,7 @@ function renderEdicao(pagina) {
     } else {
       row.innerHTML = `
         <div class="tipo-row">
+          ${handleDrag}
           <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">link</span>
           <button class="btn btn-remove" type="button" style="margin-left:auto;">✕</button>
         </div>
@@ -521,15 +616,105 @@ function renderEdicao(pagina) {
         </div>
       `;
     }
-    row.querySelector('.btn-remove').addEventListener('click', () => row.remove());
+    row.querySelector('.btn-remove').addEventListener('click', () => { row.remove(); atualizarPreview(); });
+    row.addEventListener('input', atualizarPreview);
+
+    // --- drag and drop simples (sem libs) ---
+    row.addEventListener('dragstart', () => {
+      draggedRow = row;
+      setTimeout(() => row.style.opacity = '0.4', 0);
+    });
+    row.addEventListener('dragend', () => {
+      row.style.opacity = '1';
+      draggedRow = null;
+      atualizarPreview();
+    });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedRow || draggedRow === row) return;
+      const rect = row.getBoundingClientRect();
+      const depoisDoMeio = (e.clientY - rect.top) > rect.height / 2;
+      row.parentNode.insertBefore(draggedRow, depoisDoMeio ? row.nextSibling : row);
+    });
+
     blocosArea.appendChild(row);
   }
 
   blocos.forEach(b => addBlocoRow(b.tipo || 'link', b));
 
-  document.getElementById('btnAddLink').addEventListener('click', () => addBlocoRow('link'));
-  document.getElementById('btnAddTexto').addEventListener('click', () => addBlocoRow('texto'));
-  document.getElementById('btnAddPopup').addEventListener('click', () => addBlocoRow('popup'));
+  document.getElementById('btnAddLink').addEventListener('click', () => { addBlocoRow('link'); atualizarPreview(); });
+  document.getElementById('btnAddTexto').addEventListener('click', () => { addBlocoRow('texto'); atualizarPreview(); });
+  document.getElementById('btnAddPopup').addEventListener('click', () => { addBlocoRow('popup'); atualizarPreview(); });
+
+  function coletarBlocosAtuais() {
+    return Array.from(blocosArea.querySelectorAll('.bloco-edit-item'))
+      .map(row => {
+        const id = row.dataset.blocoId;
+        if (row.dataset.tipo === 'texto') {
+          const conteudo = row.querySelector('.bloco-conteudo').value.trim();
+          return conteudo ? { id, tipo: 'texto', conteudo } : null;
+        }
+        if (row.dataset.tipo === 'popup') {
+          const titulo = row.querySelector('.bloco-titulo').value.trim();
+          const conteudo = row.querySelector('.bloco-conteudo').value.trim();
+          const copiavel = row.querySelector('.bloco-copiavel').checked;
+          return (titulo && conteudo) ? { id, tipo: 'popup', titulo, conteudo, copiavel } : null;
+        }
+        const titulo = row.querySelector('.bloco-titulo').value.trim();
+        const url = row.querySelector('.bloco-url').value.trim();
+        return (titulo && url) ? { id, tipo: 'link', titulo, url } : null;
+      })
+      .filter(Boolean);
+  }
+
+  // --- preview ao vivo ---
+  const previewWrap = document.getElementById('previewWrap');
+  const previewConteudo = document.getElementById('previewConteudo');
+  const btnTogglePreview = document.getElementById('btnTogglePreview');
+  let previewAtivo = false;
+  let previewTimeout = null;
+
+  function atualizarPreview() {
+    if (!previewAtivo) return;
+    clearTimeout(previewTimeout);
+    previewTimeout = setTimeout(() => {
+      previewConteudo.innerHTML = montarPreviewHtml({
+        slug: pagina.slug,
+        titulo: document.getElementById('fTitulo').value.trim(),
+        bio: document.getElementById('fBio').value.trim(),
+        foto_url: document.getElementById('fFoto').value.trim(),
+        verificado: pagina.verificado,
+        blocos: coletarBlocosAtuais(),
+      });
+    }, 200);
+  }
+
+  btnTogglePreview.addEventListener('click', () => {
+    previewAtivo = !previewAtivo;
+    previewWrap.style.display = previewAtivo ? 'block' : 'none';
+    btnTogglePreview.textContent = previewAtivo ? '👁 esconder preview ao vivo' : '👁 mostrar preview ao vivo';
+    if (previewAtivo) atualizarPreview();
+  });
+
+  ['fTitulo', 'fBio', 'fFoto'].forEach(id => {
+    document.getElementById(id).addEventListener('input', atualizarPreview);
+  });
+
+  // --- carregar estatísticas ---
+  (async () => {
+    const statsConteudo = document.getElementById('statsConteudo');
+    try {
+      const res = await fetch(`${API_BASE}/estatisticas.php?slug=${encodeURIComponent(slug)}&token=${encodeURIComponent(token)}`);
+      const data = await res.json();
+      if (data.sucesso) {
+        statsConteudo.innerHTML = montarPainelEstatisticas(data);
+      } else {
+        statsConteudo.textContent = 'não foi possível carregar as estatísticas.';
+      }
+    } catch (e) {
+      statsConteudo.textContent = 'erro de conexão ao carregar estatísticas.';
+    }
+  })();
 
   document.getElementById('btnSalvar').addEventListener('click', async () => {
     const btn = document.getElementById('btnSalvar');
@@ -539,24 +724,6 @@ function renderEdicao(pagina) {
     msg.textContent = '';
     msg.className = 'save-msg';
 
-    const novosBlocos = Array.from(blocosArea.querySelectorAll('.bloco-edit-item'))
-      .map(row => {
-        if (row.dataset.tipo === 'texto') {
-          const conteudo = row.querySelector('.bloco-conteudo').value.trim();
-          return conteudo ? { tipo: 'texto', conteudo } : null;
-        }
-        if (row.dataset.tipo === 'popup') {
-          const titulo = row.querySelector('.bloco-titulo').value.trim();
-          const conteudo = row.querySelector('.bloco-conteudo').value.trim();
-          const copiavel = row.querySelector('.bloco-copiavel').checked;
-          return (titulo && conteudo) ? { tipo: 'popup', titulo, conteudo, copiavel } : null;
-        }
-        const titulo = row.querySelector('.bloco-titulo').value.trim();
-        const url = row.querySelector('.bloco-url').value.trim();
-        return (titulo && url) ? { tipo: 'link', titulo, url } : null;
-      })
-      .filter(Boolean);
-
     const payload = {
       slug,
       token,
@@ -565,7 +732,7 @@ function renderEdicao(pagina) {
       foto_url: document.getElementById('fFoto').value.trim(),
       cor_tema: document.getElementById('fCor').value,
       cor_fundo: document.getElementById('fFundo').value,
-      blocos: novosBlocos,
+      blocos: coletarBlocosAtuais(),
     };
 
     try {
@@ -601,7 +768,8 @@ async function iniciar() {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/buscar.php?slug=${encodeURIComponent(slug)}`);
+    const registrarVisita = token ? '' : '&registrar_visita=1';
+    const res = await fetch(`${API_BASE}/buscar.php?slug=${encodeURIComponent(slug)}${registrarVisita}`);
     const data = await res.json();
 
     if (!data.sucesso) {
