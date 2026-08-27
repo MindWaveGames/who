@@ -397,7 +397,19 @@ function registrarClique(slugAtual, blocoId) {
   }
 }
 
-const SELO_VERIFICADO = `<svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--accent);"><path d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/><path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="var(--paper)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function montarSeloVerificado(tipo) {
+  if (tipo === 'institucional') {
+    // Selo dourado metálico: gradiente com 3 tons de dourado simulando reflexo
+    return `<svg viewBox="0 0 24 24"><defs><linearGradient id="gradDourado" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF3C4"/><stop offset="35%" stop-color="#E5B84B"/>
+      <stop offset="65%" stop-color="#C99A2E"/><stop offset="100%" stop-color="#FFE9A8"/>
+    </linearGradient></defs>
+    <path fill="url(#gradDourado)" d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/>
+    <path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="#4A3600" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+  // Selo pessoal: cor de acento escolhida pelo usuário (padrão já existente)
+  return `<svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--accent);"><path d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/><path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="var(--paper)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
 
 function gerarIdBloco() {
   return 'b_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -675,7 +687,7 @@ function renderLeitura(pagina) {
     <div class="header-row">
       <div class="avatar">${fotoHtml}</div>
       <div class="header-text">
-        <div class="handle">@${pagina.slug}${pagina.verificado ? SELO_VERIFICADO : ''}</div>
+        <div class="handle">@${pagina.slug}${pagina.verificado ? montarSeloVerificado(pagina.verificado_tipo) : ''}</div>
         <h1>${pagina.titulo}</h1>
       </div>
     </div>
@@ -717,7 +729,7 @@ function montarPreviewHtml(dados) {
     <div class="header-row">
       <div class="avatar">${fotoHtml}</div>
       <div class="header-text">
-        <div class="handle">@${dados.slug}${dados.verificado ? SELO_VERIFICADO : ''}</div>
+        <div class="handle">@${dados.slug}${dados.verificado ? montarSeloVerificado(dados.verificado_tipo) : ''}</div>
         <h1>${dados.titulo || '(sem título)'}</h1>
       </div>
     </div>
@@ -797,7 +809,7 @@ function renderEdicao(pagina) {
 
   cardEl.innerHTML = `
     <div class="edit-banner">✎ modo edição</div>
-    <div class="handle" style="margin-bottom:14px;">@${pagina.slug}${pagina.verificado ? SELO_VERIFICADO : ''}</div>
+    <div class="handle" style="margin-bottom:14px;">@${pagina.slug}${pagina.verificado ? montarSeloVerificado(pagina.verificado_tipo) : ''}</div>
 
     <div id="statsPanel" style="border:1px solid var(--hairline);border-radius:12px;padding:14px;margin-bottom:18px;">
       <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;">Estatísticas</div>
@@ -1004,6 +1016,7 @@ function renderEdicao(pagina) {
         bio: document.getElementById('fBio').value.trim(),
         foto_url: document.getElementById('fFoto').value.trim(),
         verificado: pagina.verificado,
+        verificado_tipo: pagina.verificado_tipo,
         blocos: coletarBlocosAtuais(),
       });
     }, 200);
@@ -1012,7 +1025,7 @@ function renderEdicao(pagina) {
   btnTogglePreview.addEventListener('click', () => {
     previewAtivo = !previewAtivo;
     previewWrap.style.display = previewAtivo ? 'block' : 'none';
-    btnTogglePreview.textContent = previewAtivo ? 'esconder preview ao vivo' : 'mostrar preview ao vivo';
+    btnTogglePreview.textContent = previewAtivo ? 'Esconder preview ao vivo' : 'Mostrar preview ao vivo';
     if (previewAtivo) atualizarPreview();
   });
 
