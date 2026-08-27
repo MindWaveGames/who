@@ -260,6 +260,7 @@
       <span class="dot"></span><span id="promptText">who://</span>
       <span class="lado-direito">
         <button class="tema-toggle" id="btnHome" type="button" title="voltar ao início" style="margin-right:6px;"></button>
+        <button class="tema-toggle" id="btnMapa" type="button" title="empresas perto de você" style="margin-right:6px;"></button>
         <button class="tema-toggle" id="btnBuscar" type="button" title="buscar perfis" style="margin-right:6px;"></button>
         <button class="tema-toggle" id="btnDenunciar" type="button" title="denunciar este perfil" style="margin-right:6px;"></button>
         <button class="tema-toggle" id="btnTema" type="button" title="alternar modo dia/noite"></button>
@@ -323,6 +324,35 @@
         <input type="text" id="buscaInput" placeholder="buscar por nome ou @usuário…">
       </div>
       <div id="buscaResultados"></div>
+    </div>
+  </div>
+
+  <div class="popup-overlay" id="mapaOverlay">
+    <div class="popup-modal">
+      <button class="fechar" id="mapaFechar" type="button">✕</button>
+      <h2>empresas perto de você</h2>
+      <div class="field-row" style="margin-bottom:10px;">
+        <div class="field" style="max-width:90px;">
+          <label>estado</label>
+          <select id="mapaEstado" style="width:100%;border:1px solid var(--hairline);border-radius:10px;padding:10px 8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fff;color:var(--ink);">
+            <option value="">UF</option>
+            <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option>
+            <option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option>
+            <option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option>
+            <option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+            <option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option>
+            <option>SE</option><option>TO</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>cidade (opcional)</label>
+          <input type="text" id="mapaCidade" placeholder="ex: Campinas">
+        </div>
+      </div>
+      <button class="btn btn-add" id="btnUsarLocalizacao" type="button" style="width:100%;margin-bottom:10px;">📍 usar minha localização</button>
+      <button class="btn-copiar" id="mapaBuscarBtn" type="button">buscar empresas</button>
+      <div class="save-msg" id="mapaMsg"></div>
+      <div id="mapaResultados" style="margin-top:14px;"></div>
     </div>
   </div>
 
@@ -428,7 +458,106 @@ if (!slug) {
   document.getElementById('btnHome').style.display = 'none';
 }
 
-// --- Modal de busca de perfis (acessível de qualquer tela) ---
+// --- Modal de mapa (empresas por localização) ---
+const ICONE_MAPA = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-6 3V7l6-3 6 3 6-3v16l-6 3-6-3z"/><path d="M9 4v16M15 7v16"/></svg>`;
+document.getElementById('btnMapa').innerHTML = ICONE_MAPA;
+
+const mapaOverlay = document.getElementById('mapaOverlay');
+const mapaEstado = document.getElementById('mapaEstado');
+const mapaCidade = document.getElementById('mapaCidade');
+const mapaMsg = document.getElementById('mapaMsg');
+const mapaResultados = document.getElementById('mapaResultados');
+
+document.getElementById('btnMapa').addEventListener('click', () => {
+  mapaResultados.innerHTML = '';
+  mapaMsg.textContent = '';
+  mapaMsg.className = 'save-msg';
+  mapaOverlay.classList.add('aberto');
+});
+document.getElementById('mapaFechar').addEventListener('click', () => mapaOverlay.classList.remove('aberto'));
+mapaOverlay.addEventListener('click', (e) => {
+  if (e.target === mapaOverlay) mapaOverlay.classList.remove('aberto');
+});
+
+// Geolocalização é sempre opt-in: só ativa quando a pessoa clica neste botão,
+// nunca automaticamente ao abrir o app. Usa uma API gratuita de geocodificação
+// reversa (sem chave) só pra converter coordenadas em estado/cidade — a posição
+// exata não é enviada nem guardada no nosso servidor.
+document.getElementById('btnUsarLocalizacao').addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    mapaMsg.textContent = 'seu navegador não suporta geolocalização';
+    mapaMsg.className = 'save-msg err';
+    return;
+  }
+  mapaMsg.textContent = 'obtendo localização…';
+  mapaMsg.className = 'save-msg';
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    try {
+      const { latitude, longitude } = pos.coords;
+      const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=pt`);
+      const data = await res.json();
+      const uf = data.principalSubdivisionCode ? data.principalSubdivisionCode.split('-')[1] : '';
+      if (uf) mapaEstado.value = uf;
+      if (data.city) mapaCidade.value = data.city;
+      mapaMsg.textContent = uf ? 'localização preenchida, confira e busque' : 'não consegui identificar seu estado, preencha manualmente';
+      mapaMsg.className = uf ? 'save-msg ok' : 'save-msg err';
+    } catch (e) {
+      mapaMsg.textContent = 'não foi possível converter sua localização, preencha manualmente';
+      mapaMsg.className = 'save-msg err';
+    }
+  }, () => {
+    mapaMsg.textContent = 'permissão negada — preencha manualmente';
+    mapaMsg.className = 'save-msg err';
+  });
+});
+
+document.getElementById('mapaBuscarBtn').addEventListener('click', async () => {
+  const estado = mapaEstado.value;
+  const cidade = mapaCidade.value.trim();
+
+  if (!estado) {
+    mapaMsg.textContent = 'selecione um estado';
+    mapaMsg.className = 'save-msg err';
+    return;
+  }
+
+  mapaMsg.textContent = 'buscando…';
+  mapaMsg.className = 'save-msg';
+  mapaResultados.innerHTML = '';
+
+  try {
+    const params = new URLSearchParams({ estado });
+    if (cidade) params.set('cidade', cidade);
+    const res = await fetch(`${API_BASE}/buscar_local.php?${params.toString()}`);
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data || !data.sucesso) {
+      mapaMsg.textContent = (data && data.erro) || 'erro ao buscar';
+      mapaMsg.className = 'save-msg err';
+      return;
+    }
+
+    mapaMsg.textContent = '';
+    if (!data.resultados.length) {
+      mapaResultados.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--graphite);padding:10px;">nenhum perfil encontrado nessa região ainda</div>`;
+      return;
+    }
+
+    mapaResultados.innerHTML = data.resultados.map(p => `
+      <a href="/${p.slug}" class="link-row" style="margin-bottom:8px;text-decoration:none;">
+        <span class="label">
+          <span class="avatar" style="width:32px;height:32px;font-size:13px;">${p.foto_url ? `<img src="${p.foto_url}" alt="">` : iniciaisNome(p.titulo)}</span>
+          <span>${p.titulo}${p.verificado ? montarSeloVerificado(p.verificado_tipo) : ''}<br><span style="font-size:11px;color:var(--graphite);">${p.cidade ? p.cidade + ' - ' : ''}${p.estado}</span></span>
+        </span>
+        <span class="arrow">→</span>
+      </a>
+    `).join('');
+  } catch (e) {
+    mapaMsg.textContent = 'erro de conexão com a api';
+    mapaMsg.className = 'save-msg err';
+  }
+});
 const ICONE_LUPA = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>`;
 document.getElementById('btnBuscar').innerHTML = ICONE_LUPA;
 
@@ -589,17 +718,16 @@ function registrarClique(slugAtual, blocoId) {
 }
 
 function montarSeloVerificado(tipo) {
+  const estiloBase = 'width:14px;height:14px;flex-shrink:0;vertical-align:-2px;display:inline-block;';
   if (tipo === 'institucional') {
-    // Selo dourado metálico: gradiente com 3 tons de dourado simulando reflexo
-    return `<svg viewBox="0 0 24 24"><defs><linearGradient id="gradDourado" x1="0%" y1="0%" x2="100%" y2="100%">
+    return `<svg viewBox="0 0 24 24" style="${estiloBase}"><defs><linearGradient id="gradDourado" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FFF3C4"/><stop offset="35%" stop-color="#E5B84B"/>
       <stop offset="65%" stop-color="#C99A2E"/><stop offset="100%" stop-color="#FFE9A8"/>
     </linearGradient></defs>
     <path fill="url(#gradDourado)" d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/>
     <path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="#4A3600" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
-  // Selo pessoal: cor de acento escolhida pelo usuário (padrão já existente)
-  return `<svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--accent);"><path d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/><path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="var(--paper)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `<svg viewBox="0 0 24 24" fill="currentColor" style="${estiloBase}color:var(--accent);"><path d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/><path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="var(--paper)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 function gerarIdBloco() {
@@ -679,7 +807,7 @@ popupOverlay.addEventListener('click', (e) => {
 popupCopiar.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(popupConteudo.textContent);
-    popupCopiar.textContent = '✓ copiado';
+    popupCopiar.textContent = 'copiado';
     popupCopiar.classList.add('copiado');
     setTimeout(() => {
       popupCopiar.textContent = 'copiar';
@@ -1014,6 +1142,24 @@ function renderEdicao(pagina) {
       <label>bio (use enter para pular linha)</label>
       <textarea id="fBio" rows="3">${pagina.bio || ''}</textarea>
     </div>
+    <div class="field-row" style="margin-bottom:14px;">
+      <div class="field" style="max-width:90px;">
+        <label>estado</label>
+        <select id="fEstado" style="width:100%;border:1px solid var(--hairline);border-radius:10px;padding:10px 8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fff;color:var(--ink);">
+          <option value="">-</option>
+          <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option>
+          <option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option>
+          <option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option>
+          <option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+          <option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option>
+          <option>SE</option><option>TO</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>cidade (aparece na busca por localização)</label>
+        <input type="text" id="fCidade" value="${pagina.cidade || ''}" placeholder="ex: Campinas">
+      </div>
+    </div>
     <div class="field-row">
       <div class="field">
         <label>foto (url)</label>
@@ -1049,6 +1195,8 @@ function renderEdicao(pagina) {
       </div>
     </div>
   `;
+
+  document.getElementById('fEstado').value = pagina.estado || '';
 
   const blocosArea = document.getElementById('blocosEditArea');
   let draggedRow = null;
@@ -1305,6 +1453,8 @@ function renderEdicao(pagina) {
       foto_url: document.getElementById('fFoto').value.trim(),
       cor_tema: document.getElementById('fCor').value,
       cor_fundo: document.getElementById('fFundo').value,
+      estado: document.getElementById('fEstado').value,
+      cidade: document.getElementById('fCidade').value.trim(),
       blocos: coletarBlocosAtuais(),
     };
 
