@@ -464,8 +464,13 @@ buscaInput.addEventListener('input', () => {
     try {
       const url = `${API_BASE}/buscar_perfis.php?q=${encodeURIComponent(termo)}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data) {
+        console.error('Erro na busca de perfis. Status:', res.status, 'Corpo:', data);
+        buscaResultados.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--accent);padding:10px;">${(data && data.erro) || 'erro no servidor (status ' + res.status + '), veja o console'}</div>`;
+        return;
+      }
       if (!data.sucesso) {
         buscaResultados.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--accent);padding:10px;">${data.erro || 'erro ao buscar'}</div>`;
         return;
@@ -1313,7 +1318,7 @@ function renderEdicao(pagina) {
       const data = await res.json();
 
       if (data.sucesso) {
-        msg.textContent = '✓ alterações salvas';
+        msg.textContent = 'alterações salvas';
         msg.classList.add('ok');
         aplicarCorTema(payload.cor_tema, payload.cor_fundo);
       } else {
