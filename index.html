@@ -50,12 +50,11 @@
   .card{
     background:var(--paper);color:var(--ink);border-radius:18px;
     padding:36px 28px 28px;box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);
-    position:relative;
+    position:relative;overflow:hidden;
   }
   .card::before{
     content:"";position:absolute;top:0;left:0;right:0;height:3px;
     background:linear-gradient(90deg, var(--accent), transparent 70%);
-    border-radius:18px 18px 0 0;
   }
   .header-row{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
   .avatar{
@@ -1496,8 +1495,9 @@ async function iniciar() {
   }
 
   try {
-    const registrarVisita = token ? '' : '&registrar_visita=1';
-    const res = await fetch(`${API_BASE}/buscar.php?slug=${encodeURIComponent(slug)}${registrarVisita}`);
+    const qs = new URLSearchParams({ slug });
+    if (token) qs.set('token', token);
+    const res = await fetch(`${API_BASE}/buscar.php?${qs.toString()}`);
     const data = await res.json();
 
     if (!data.sucesso) {
@@ -1505,10 +1505,16 @@ async function iniciar() {
       return;
     }
 
-    if (token) {
+    if (data.pode_editar) {
       renderEdicao(data.pagina);
     } else {
       renderLeitura(data.pagina);
+      if (token) {
+        const aviso = document.createElement('div');
+        aviso.textContent = 'token de edição inválido — mostrando modo leitura';
+        aviso.style.cssText = 'text-align:center;font-size:11px;color:var(--accent);font-family:\'IBM Plex Mono\',monospace;margin-bottom:14px;';
+        cardEl.insertBefore(aviso, cardEl.firstChild);
+      }
     }
   } catch (e) {
     renderErro('não foi possível conectar à api. tenta de novo em instantes.');
