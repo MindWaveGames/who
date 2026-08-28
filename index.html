@@ -50,11 +50,12 @@
   .card{
     background:var(--paper);color:var(--ink);border-radius:18px;
     padding:36px 28px 28px;box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);
-    position:relative;overflow:hidden;
+    position:relative;
   }
   .card::before{
     content:"";position:absolute;top:0;left:0;right:0;height:3px;
     background:linear-gradient(90deg, var(--accent), transparent 70%);
+    border-radius:18px 18px 0 0;
   }
   .header-row{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
   .avatar{
@@ -349,7 +350,7 @@
           <input type="text" id="mapaCidade" placeholder="ex: Campinas">
         </div>
       </div>
-      <button class="btn btn-add" id="btnUsarLocalizacao" type="button" style="width:100%;margin-bottom:10px;">📍 usar minha localização</button>
+      <button class="btn btn-add" id="btnUsarLocalizacao" type="button" style="width:100%;margin-bottom:10px;">usar minha localização</button>
       <button class="btn-copiar" id="mapaBuscarBtn" type="button">buscar empresas</button>
       <div class="save-msg" id="mapaMsg"></div>
       <div id="mapaResultados" style="margin-top:14px;"></div>
@@ -432,7 +433,7 @@ document.getElementById('denunciaEnviar').addEventListener('click', async () => 
     });
     const data = await res.json();
     if (data.sucesso) {
-      msg.textContent = '✓ ' + data.mensagem;
+      msg.textContent = data.mensagem;
       msg.className = 'save-msg ok';
       setTimeout(() => denunciaOverlay.classList.remove('aberto'), 2000);
     } else {
@@ -916,7 +917,7 @@ function configurarBotaoCompartilhar(pagina) {
       try {
         await navigator.clipboard.writeText(urlPerfil);
         const textoOriginal = btn.innerHTML;
-        btn.innerHTML = '✓ link copiado';
+        btn.innerHTML = 'link copiado';
         setTimeout(() => { btn.innerHTML = textoOriginal; }, 1800);
       } catch (e) {
         // falha silenciosa: não é crítico
@@ -1142,6 +1143,7 @@ function renderEdicao(pagina) {
       <label>bio (use enter para pular linha)</label>
       <textarea id="fBio" rows="3">${pagina.bio || ''}</textarea>
     </div>
+    ${pagina.verificado ? `
     <div class="field-row" style="margin-bottom:14px;">
       <div class="field" style="max-width:90px;">
         <label>estado</label>
@@ -1160,6 +1162,8 @@ function renderEdicao(pagina) {
         <input type="text" id="fCidade" value="${pagina.cidade || ''}" placeholder="ex: Campinas">
       </div>
     </div>
+    <div style="font-size:11px;color:var(--graphite);margin:-6px 0 14px;">localização disponível porque este perfil é verificado</div>
+    ` : ''}
     <div class="field-row">
       <div class="field">
         <label>foto (url)</label>
@@ -1196,7 +1200,8 @@ function renderEdicao(pagina) {
     </div>
   `;
 
-  document.getElementById('fEstado').value = pagina.estado || '';
+  const fEstadoEl = document.getElementById('fEstado');
+  if (fEstadoEl) fEstadoEl.value = pagina.estado || '';
 
   const blocosArea = document.getElementById('blocosEditArea');
   let draggedRow = null;
@@ -1453,8 +1458,8 @@ function renderEdicao(pagina) {
       foto_url: document.getElementById('fFoto').value.trim(),
       cor_tema: document.getElementById('fCor').value,
       cor_fundo: document.getElementById('fFundo').value,
-      estado: document.getElementById('fEstado').value,
-      cidade: document.getElementById('fCidade').value.trim(),
+      estado: document.getElementById('fEstado') ? document.getElementById('fEstado').value : undefined,
+      cidade: document.getElementById('fCidade') ? document.getElementById('fCidade').value.trim() : undefined,
       blocos: coletarBlocosAtuais(),
     };
 
