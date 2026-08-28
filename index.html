@@ -226,10 +226,11 @@
   /* --- menu unificado de adicionar bloco --- */
   .add-bloco-wrap{position:relative;}
   .add-bloco-menu{
-    position:absolute;top:calc(100% + 6px);left:0;right:0;
+    position:fixed;
     background:#fff;border:1px solid var(--hairline);border-radius:12px;
     box-shadow:0 12px 30px -10px rgba(0,0,0,0.3);
-    padding:10px;z-index:20;display:none;
+    padding:10px;z-index:2000;display:none;
+    max-height:280px;overflow-y:auto;
   }
   .add-bloco-menu.aberto{display:block;}
   .add-bloco-busca{
@@ -1347,6 +1348,17 @@ function renderEdicao(pagina) {
   }
 
   function abrirMenuBloco() {
+    // O menu é movido pro <body> na primeira abertura, assim nenhum
+    // overflow:hidden de ancestral (como a barrinha decorativa do
+    // cartão) consegue cortá-lo visualmente.
+    if (menuAddBloco.parentElement !== document.body) {
+      document.body.appendChild(menuAddBloco);
+    }
+    const rect = btnAbrirMenuBloco.getBoundingClientRect();
+    menuAddBloco.style.top = (rect.bottom + 6) + 'px';
+    menuAddBloco.style.left = rect.left + 'px';
+    menuAddBloco.style.width = rect.width + 'px';
+
     menuAddBloco.classList.add('aberto');
     buscaBloco.value = '';
     renderizarOpcoesBloco('');
