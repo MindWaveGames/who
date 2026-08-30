@@ -577,6 +577,8 @@ const ICONE_QR = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 function arquivoLogoParaUrl(url) {
   try {
     const u = url.toLowerCase();
+    if (u.includes('editoramindwave.com.br')) return 'emindwave';
+    if (u.includes('who.editoramindwave.com.br')) return 'wmindwave';
     if (u.includes('wa.me') || u.includes('whatsapp.com')) return 'whatsapp';
     if (u.includes('instagram.com')) return 'instagram';
     if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
