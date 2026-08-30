@@ -3,7 +3,7 @@ Seu perfil. Sua identidade. Seu espaço.
 
 Who é uma plataforma de perfil digital desenvolvida pela MindWave, criada para reunir sua identidade online em um único lugar — de forma simples, elegante e personalizável.
 
-✦ Crie seu perfil
+# ✦ Crie seu perfil
 
 Apresente quem você é, o que faz e onde as pessoas podem encontrar você.
 
@@ -11,7 +11,7 @@ Apresente quem você é, o que faz e onde as pessoas podem encontrar você.
 🎨 Sua identidade.
 🔗 Seus contatos e redes.
 
-🚀 Recursos
+# 🚀 Recursos
 Perfil personalizado
 Links e redes sociais
 Identidade visual própria
@@ -25,14 +25,14 @@ O Who foi desenvolvido para funcionar diretamente no navegador, podendo ser inst
 
 Web · iOS · Android · Desktop
 
-🧠 MindWave
+# 🧠 MindWave
 
 O Who é um projeto da MindWave, criado para transformar uma simples página de perfil em uma experiência digital própria.
 
-Who are you?
+Who is?
 
-Status
+# Status
 
 Em desenvolvimento.
 
-MindWave Games
+Editora MindWave
