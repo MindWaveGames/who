@@ -13,12 +13,9 @@
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   font-src https://fonts.gstatic.com;
   img-src 'self' https: data:;
-  connect-src 'self' https://editoramindwave.com.br https://api.bigdatacloud.net https://api.qrserver.com;
+  connect-src 'self' https://editoramindwave.com.br https://api.bigdatacloud.net https://api.qrserver.com https://servicodados.ibge.gov.br;
   frame-src https://www.youtube.com https://open.spotify.com https://www.google.com https://calendly.com https://docs.google.com;
 ">
-<link rel="apple-touch-icon" sizes="180x180" href="https://editoramindwave.com.br/api/libs/logos/icon2.png">
-<link rel="icon" type="image/png" href="https://editoramindwave.com.br/api/libs/logos/icon1.png">
-<link rel="manifest" href="/chrome.json">
 </head>
 <body>
   <div class="scene">
@@ -38,7 +35,7 @@
         procurando registro na base
       </div>
     </div>
-    <div class="footer-tag">feito com ❤︎ <a href="https://editoramindwave.com.br" target="_blank" rel="noopener">mindwave</a></div>
+    <div class="footer-tag">feito com ❤︎ <a href="https://editoramindwave.com.br" target="_blank" rel="noopener">mindwave</a> · <button class="btn-link-discreto" id="btnAbrirSuporte" type="button" style="text-decoration:underline;">suporte</button></div>
   </div>
 
   <div class="popup-overlay" id="popupOverlay">
@@ -89,6 +86,13 @@
       <div class="field">
         <input type="text" id="buscaInput" placeholder="buscar por nome ou @usuário…">
       </div>
+      <div class="field">
+        <select id="buscaCategoria" style="width:100%;border:1px solid var(--hairline);border-radius:10px;padding:9px 10px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:#fff;color:var(--ink);">
+          <option value="">todas as categorias</option>
+          <option value="pf">pessoa física</option>
+          <option value="pj">pessoa jurídica</option>
+        </select>
+      </div>
       <div id="buscaResultados"></div>
     </div>
   </div>
@@ -115,10 +119,55 @@
           <input type="text" id="mapaCidade" placeholder="ex: Campinas">
         </div>
       </div>
+      <div class="field">
+        <select id="mapaCategoria" style="width:100%;border:1px solid var(--hairline);border-radius:10px;padding:9px 10px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:#fff;color:var(--ink);">
+          <option value="">todas as categorias</option>
+          <option value="pf">pessoa física</option>
+          <option value="pj">pessoa jurídica</option>
+        </select>
+      </div>
       <button class="btn btn-add" id="btnUsarLocalizacao" type="button" style="width:100%;margin-bottom:10px;">usar minha localização</button>
       <button class="btn-copiar" id="mapaBuscarBtn" type="button">buscar empresas</button>
       <div class="save-msg" id="mapaMsg"></div>
       <div id="mapaResultados" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <div class="popup-overlay" id="suporteOverlay">
+    <div class="popup-modal">
+      <button class="fechar" id="suporteFechar" type="button" aria-label="fechar">✕</button>
+      <h2>abrir chamado</h2>
+      <div class="field">
+        <label>seu nome</label>
+        <input type="text" id="suporteNome" placeholder="seu nome">
+      </div>
+      <div class="field">
+        <label>e-mail</label>
+        <input type="email" id="suporteEmail" placeholder="voce@email.com">
+      </div>
+      <div class="field">
+        <label>assunto</label>
+        <input type="text" id="suporteAssunto" placeholder="ex: dúvida sobre meu perfil">
+      </div>
+      <div class="field">
+        <label>mensagem</label>
+        <textarea id="suporteMensagem" rows="3" placeholder="descreva o que você precisa"></textarea>
+      </div>
+      <button class="btn-copiar" id="suporteEnviar" type="button">enviar chamado</button>
+      <div class="save-msg" id="suporteMsg"></div>
+    </div>
+  </div>
+
+  <div class="popup-overlay" id="esqueciOverlay">
+    <div class="popup-modal">
+      <button class="fechar" id="esqueciFechar" type="button" aria-label="fechar">✕</button>
+      <h2 id="esqueciTitulo">recuperar acesso</h2>
+      <div class="field">
+        <label>e-mail cadastrado</label>
+        <input type="email" id="esqueciEmail" placeholder="voce@email.com">
+      </div>
+      <button class="btn-copiar" id="esqueciEnviar" type="button">enviar</button>
+      <div class="save-msg" id="esqueciMsg"></div>
     </div>
   </div>
 
@@ -239,6 +288,110 @@ document.getElementById('denunciaEnviar').addEventListener('click', async () => 
   }
 });
 
+// --- Suporte (abrir chamado) ---
+const suporteOverlay = document.getElementById('suporteOverlay');
+document.getElementById('btnAbrirSuporte').addEventListener('click', () => {
+  document.getElementById('suporteNome').value = '';
+  document.getElementById('suporteEmail').value = '';
+  document.getElementById('suporteAssunto').value = '';
+  document.getElementById('suporteMensagem').value = '';
+  document.getElementById('suporteMsg').textContent = '';
+  document.getElementById('suporteMsg').className = 'save-msg';
+  suporteOverlay.classList.add('aberto');
+});
+document.getElementById('suporteFechar').addEventListener('click', () => suporteOverlay.classList.remove('aberto'));
+suporteOverlay.addEventListener('click', (e) => {
+  if (e.target === suporteOverlay) suporteOverlay.classList.remove('aberto');
+});
+document.getElementById('suporteEnviar').addEventListener('click', async () => {
+  const btn = document.getElementById('suporteEnviar');
+  const msg = document.getElementById('suporteMsg');
+  const nome = document.getElementById('suporteNome').value.trim();
+  const email = document.getElementById('suporteEmail').value.trim();
+  const assunto = document.getElementById('suporteAssunto').value.trim();
+  const mensagem = document.getElementById('suporteMensagem').value.trim();
+
+  if (!nome || !email || !assunto || !mensagem) {
+    msg.textContent = 'preencha todos os campos';
+    msg.className = 'save-msg err';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'enviando…';
+  try {
+    const res = await fetch(`${API_BASE}/abrir_chamado.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, nome, email, assunto, mensagem }),
+    });
+    const data = await res.json();
+    if (data.sucesso) {
+      msg.textContent = data.mensagem;
+      msg.className = 'save-msg ok';
+      setTimeout(() => suporteOverlay.classList.remove('aberto'), 2500);
+    } else {
+      msg.textContent = data.erro || 'não foi possível enviar';
+      msg.className = 'save-msg err';
+    }
+  } catch (e) {
+    msg.textContent = 'erro de conexão com a api';
+    msg.className = 'save-msg err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'enviar chamado';
+  }
+});
+
+// --- Esqueci meu token / esqueci minha senha ---
+const esqueciOverlay = document.getElementById('esqueciOverlay');
+let esqueciModoAtual = 'token';
+
+function abrirEsqueci(modo) {
+  esqueciModoAtual = modo;
+  document.getElementById('esqueciTitulo').textContent = modo === 'token' ? 'recuperar token' : 'recuperar senha';
+  document.getElementById('esqueciEmail').value = '';
+  document.getElementById('esqueciMsg').textContent = '';
+  document.getElementById('esqueciMsg').className = 'save-msg';
+  esqueciOverlay.classList.add('aberto');
+}
+document.getElementById('esqueciFechar').addEventListener('click', () => esqueciOverlay.classList.remove('aberto'));
+esqueciOverlay.addEventListener('click', (e) => {
+  if (e.target === esqueciOverlay) esqueciOverlay.classList.remove('aberto');
+});
+document.getElementById('esqueciEnviar').addEventListener('click', async () => {
+  const btn = document.getElementById('esqueciEnviar');
+  const msg = document.getElementById('esqueciMsg');
+  const email = document.getElementById('esqueciEmail').value.trim();
+
+  if (!email) {
+    msg.textContent = 'digite seu e-mail';
+    msg.className = 'save-msg err';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'enviando…';
+  const endpoint = esqueciModoAtual === 'token' ? 'esqueci_token.php' : 'esqueci_senha.php';
+
+  try {
+    const res = await fetch(`${API_BASE}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    msg.textContent = data.mensagem || data.erro || 'solicitação enviada';
+    msg.className = data.sucesso ? 'save-msg ok' : 'save-msg err';
+  } catch (e) {
+    msg.textContent = 'erro de conexão com a api';
+    msg.className = 'save-msg err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'enviar';
+  }
+});
+
 // --- Solicitar cadastro (self-service com aprovação do admin) ---
 const solicitarOverlay = document.getElementById('solicitarOverlay');
 document.getElementById('solicitarFechar').addEventListener('click', () => solicitarOverlay.classList.remove('aberto'));
@@ -306,6 +459,8 @@ const mapaCidade = document.getElementById('mapaCidade');
 const mapaMsg = document.getElementById('mapaMsg');
 const mapaResultados = document.getElementById('mapaResultados');
 
+mapaEstado.addEventListener('change', () => carregarCidadesParaEstado(mapaEstado, mapaCidade, 'listaCidadesMapa'));
+
 document.getElementById('btnMapa').addEventListener('click', () => {
   mapaResultados.innerHTML = '';
   mapaMsg.textContent = '';
@@ -367,6 +522,8 @@ document.getElementById('mapaBuscarBtn').addEventListener('click', async () => {
   try {
     const params = new URLSearchParams({ estado });
     if (cidade) params.set('cidade', cidade);
+    const categoriaMapa = document.getElementById('mapaCategoria').value;
+    if (categoriaMapa) params.set('categoria', categoriaMapa);
     const res = await fetch(`${API_BASE}/buscar_local.php?${params.toString()}`);
     const data = await res.json().catch(() => null);
 
@@ -386,7 +543,7 @@ document.getElementById('mapaBuscarBtn').addEventListener('click', async () => {
       <a href="/${p.slug}" class="link-row" style="margin-bottom:8px;text-decoration:none;">
         <span class="label">
           <span class="avatar" style="width:32px;height:32px;font-size:13px;">${p.foto_url ? `<img src="${p.foto_url}" alt="">` : iniciaisNome(p.titulo)}</span>
-          <span>${p.titulo}${p.verificado ? montarSeloVerificado(p.verificado_tipo) : ''}<br><span style="font-size:11px;color:var(--graphite);">${p.cidade ? p.cidade + ' - ' : ''}${p.estado}</span></span>
+          <span>${p.titulo}${p.verificado ? montarSeloVerificado(p.verificado_tipo) : ''}${montarSeloCategoria(p.categoria)}<br><span style="font-size:11px;color:var(--graphite);">${p.cidade ? p.cidade + ' - ' : ''}${p.estado}</span></span>
         </span>
         <span class="arrow">→</span>
       </a>
@@ -419,6 +576,9 @@ buscaOverlay.addEventListener('click', (e) => {
   if (e.target === buscaOverlay) buscaOverlay.classList.remove('aberto');
 });
 
+const buscaCategoria = document.getElementById('buscaCategoria');
+buscaCategoria.addEventListener('change', () => buscaInput.dispatchEvent(new Event('input')));
+
 buscaInput.addEventListener('input', () => {
   clearTimeout(timeoutBusca);
   const termo = buscaInput.value.trim();
@@ -429,7 +589,9 @@ buscaInput.addEventListener('input', () => {
   timeoutBusca = setTimeout(async () => {
     buscaResultados.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--graphite);padding:10px;">buscando…</div>`;
     try {
-      const url = `${API_BASE}/buscar_perfis.php?q=${encodeURIComponent(termo)}`;
+      const params = new URLSearchParams({ q: termo });
+      if (buscaCategoria.value) params.set('categoria', buscaCategoria.value);
+      const url = `${API_BASE}/buscar_perfis.php?${params.toString()}`;
       const res = await fetch(url);
       const data = await res.json().catch(() => null);
 
@@ -450,7 +612,7 @@ buscaInput.addEventListener('input', () => {
         <a href="/${p.slug}" class="link-row" style="margin-bottom:8px;text-decoration:none;">
           <span class="label">
             <span class="avatar" style="width:32px;height:32px;font-size:13px;">${p.foto_url ? `<img src="${p.foto_url}" alt="">` : iniciaisNome(p.titulo)}</span>
-            <span>${p.titulo}${p.verificado ? montarSeloVerificado(p.verificado_tipo) : ''}<br><span style="font-size:11px;color:var(--graphite);">@${p.slug}</span></span>
+            <span>${p.titulo}${p.verificado ? montarSeloVerificado(p.verificado_tipo) : ''}${montarSeloCategoria(p.categoria)}<br><span style="font-size:11px;color:var(--graphite);">@${p.slug}</span></span>
           </span>
           <span class="arrow">→</span>
         </a>
@@ -568,8 +730,45 @@ function montarSeloVerificado(tipo) {
   return `<svg viewBox="0 0 24 24" fill="currentColor" style="${estiloBase}color:var(--accent);"><path d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/><path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="var(--paper)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
+function montarSeloCategoria(categoria) {
+  if (categoria !== 'pf' && categoria !== 'pj') return '';
+  const label = categoria === 'pj' ? 'PJ' : 'PF';
+  return `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--graphite);border:1px solid var(--hairline);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px;">${label}</span>`;
+}
+
 function gerarIdBloco() {
   return 'b_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// --- Autocomplete de cidades por estado (dados oficiais do IBGE) ---
+const cacheCidadesPorUf = {};
+
+async function carregarCidadesParaEstado(ufSelectEl, cidadeInputEl, datalistId) {
+  const uf = ufSelectEl.value;
+  if (!uf) return;
+
+  let datalist = document.getElementById(datalistId);
+  if (!datalist) {
+    datalist = document.createElement('datalist');
+    datalist.id = datalistId;
+    document.body.appendChild(datalist);
+  }
+  cidadeInputEl.setAttribute('list', datalistId);
+
+  if (cacheCidadesPorUf[uf]) {
+    datalist.innerHTML = cacheCidadesPorUf[uf];
+    return;
+  }
+
+  try {
+    const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`);
+    const cidades = await res.json();
+    const opcoes = cidades.map(c => `<option value="${c.nome}">`).join('');
+    cacheCidadesPorUf[uf] = opcoes;
+    datalist.innerHTML = opcoes;
+  } catch (e) {
+    // se a API do IBGE falhar, a pessoa ainda pode digitar livremente
+  }
 }
 
 const ICONE_COMPARTILHAR = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.8M8.6 13.4l6.8 3.8"/></svg>`;
@@ -578,8 +777,6 @@ const ICONE_QR = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 function arquivoLogoParaUrl(url) {
   try {
     const u = url.toLowerCase();
-    if (u.includes('who.editoramindwave.com.br')) return 'wmindwave';
-    if (u.includes('editoramindwave.com.br')) return 'emindwave';
     if (u.includes('wa.me') || u.includes('whatsapp.com')) return 'whatsapp';
     if (u.includes('instagram.com')) return 'instagram';
     if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
@@ -662,9 +859,15 @@ function renderEstadoVazio() {
   cardEl.innerHTML = `
     <div style="text-align:center;margin-bottom:18px;">
       <div class="big" style="font-family:'Space Grotesk',sans-serif;font-size:19px;color:var(--ink);margin-bottom:4px;">encontrar seu perfil</div>
-      <div style="font-size:12px;color:var(--graphite);">perdeu o link? entre com seu @usuário e token de edição</div>
+      <div style="font-size:12px;color:var(--graphite);">acesse com seu token ou com login e senha</div>
     </div>
-    <div class="fallback-form">
+
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="btn btn-add" id="tabToken" type="button" style="flex:1;"></button>
+      <button class="btn btn-add" id="tabLogin" type="button" style="flex:1;"></button>
+    </div>
+
+    <div id="painelToken" class="fallback-form">
       <div class="field">
         <label>@usuário</label>
         <input type="text" id="fbSlug" placeholder="seu-usuario">
@@ -675,11 +878,51 @@ function renderEstadoVazio() {
       </div>
       <button class="btn btn-save" id="btnFbAcessar" type="button">acessar meu perfil</button>
       <div class="save-msg" id="fbMsg"></div>
+      <div style="text-align:center;margin-top:10px;">
+        <button class="btn-link-discreto" id="btnAbrirEsqueciToken" type="button">esqueci meu token</button>
+      </div>
     </div>
+
+    <div id="painelLogin" class="fallback-form" style="display:none;">
+      <div class="field">
+        <label>e-mail</label>
+        <input type="email" id="loginEmail" placeholder="voce@email.com">
+      </div>
+      <div class="field">
+        <label>senha</label>
+        <input type="password" id="loginSenha" placeholder="••••••••">
+      </div>
+      <button class="btn btn-save" id="btnLoginEntrar" type="button">entrar</button>
+      <div class="save-msg" id="loginMsg"></div>
+      <div style="text-align:center;margin-top:10px;">
+        <button class="btn-link-discreto" id="btnAbrirEsqueciSenha" type="button">esqueci minha senha</button>
+      </div>
+    </div>
+
     <div style="text-align:center;margin-top:18px;">
       <button class="btn btn-add" id="btnAbrirSolicitar" type="button">ainda não tenho conta — solicitar acesso</button>
     </div>
   `;
+
+  const tabToken = document.getElementById('tabToken');
+  const tabLogin = document.getElementById('tabLogin');
+  const painelToken = document.getElementById('painelToken');
+  const painelLogin = document.getElementById('painelLogin');
+
+  function ativarAba(aba) {
+    const ehToken = aba === 'token';
+    painelToken.style.display = ehToken ? 'block' : 'none';
+    painelLogin.style.display = ehToken ? 'none' : 'block';
+    tabToken.style.background = ehToken ? 'var(--ink)' : 'transparent';
+    tabToken.style.color = ehToken ? 'var(--paper)' : 'var(--ink)';
+    tabLogin.style.background = ehToken ? 'transparent' : 'var(--ink)';
+    tabLogin.style.color = ehToken ? 'var(--ink)' : 'var(--paper)';
+  }
+  tabToken.textContent = 'com token';
+  tabLogin.textContent = 'com login';
+  tabToken.addEventListener('click', () => ativarAba('token'));
+  tabLogin.addEventListener('click', () => ativarAba('login'));
+  ativarAba('token');
 
   function tentarAcessar() {
     const slugDigitado = document.getElementById('fbSlug').value.trim().replace(/^@/, '');
@@ -700,6 +943,48 @@ function renderEstadoVazio() {
 
   document.getElementById('btnFbAcessar').addEventListener('click', tentarAcessar);
   document.getElementById('fbToken').addEventListener('keydown', (e) => { if (e.key === 'Enter') tentarAcessar(); });
+
+  async function tentarLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const senha = document.getElementById('loginSenha').value;
+    const msg = document.getElementById('loginMsg');
+    const btn = document.getElementById('btnLoginEntrar');
+
+    if (!email || !senha) {
+      msg.textContent = 'preencha e-mail e senha';
+      msg.className = 'save-msg err';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'entrando…';
+    try {
+      const res = await fetch(`${API_BASE}/login.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha }),
+      });
+      const data = await res.json();
+      if (data.sucesso) {
+        window.location.href = `${window.location.origin}/${encodeURIComponent(data.slug)}?token=${encodeURIComponent(data.token)}`;
+      } else {
+        msg.textContent = data.erro || 'não foi possível entrar';
+        msg.className = 'save-msg err';
+      }
+    } catch (e) {
+      msg.textContent = 'erro de conexão com a api';
+      msg.className = 'save-msg err';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'entrar';
+    }
+  }
+  document.getElementById('btnLoginEntrar').addEventListener('click', tentarLogin);
+  document.getElementById('loginSenha').addEventListener('keydown', (e) => { if (e.key === 'Enter') tentarLogin(); });
+
+  document.getElementById('btnAbrirEsqueciToken').addEventListener('click', () => abrirEsqueci('token'));
+  document.getElementById('btnAbrirEsqueciSenha').addEventListener('click', () => abrirEsqueci('senha'));
+
   document.getElementById('btnAbrirSolicitar').addEventListener('click', () => {
     document.getElementById('solicitarSlug').value = '';
     document.getElementById('solicitarTitulo').value = '';
@@ -861,7 +1146,7 @@ function renderLeitura(pagina) {
     <div class="header-row">
       <div class="avatar">${fotoHtml}</div>
       <div class="header-text">
-        <div class="handle">@${pagina.slug}${pagina.verificado ? montarSeloVerificado(pagina.verificado_tipo) : ''}</div>
+        <div class="handle">@${pagina.slug}${pagina.verificado ? montarSeloVerificado(pagina.verificado_tipo) : ''}${montarSeloCategoria(pagina.categoria)}</div>
         <h1>${pagina.titulo}</h1>
       </div>
     </div>
@@ -903,7 +1188,7 @@ function montarPreviewHtml(dados) {
     <div class="header-row">
       <div class="avatar">${fotoHtml}</div>
       <div class="header-text">
-        <div class="handle">@${dados.slug}${dados.verificado ? montarSeloVerificado(dados.verificado_tipo) : ''}</div>
+        <div class="handle">@${dados.slug}${dados.verificado ? montarSeloVerificado(dados.verificado_tipo) : ''}${montarSeloCategoria(dados.categoria)}</div>
         <h1>${dados.titulo || '(sem título)'}</h1>
       </div>
     </div>
@@ -998,6 +1283,14 @@ function renderEdicao(pagina) {
       <label>bio (use enter para pular linha)</label>
       <textarea id="fBio" rows="3">${pagina.bio || ''}</textarea>
     </div>
+    <div class="field">
+      <label>categoria</label>
+      <select id="fCategoria" style="width:100%;border:1px solid var(--hairline);border-radius:10px;padding:10px 8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fff;color:var(--ink);">
+        <option value="">não informar</option>
+        <option value="pf" ${pagina.categoria === 'pf' ? 'selected' : ''}>Pessoa física</option>
+        <option value="pj" ${pagina.categoria === 'pj' ? 'selected' : ''}>Pessoa jurídica</option>
+      </select>
+    </div>
     ${pagina.verificado ? `
     <div class="field-row" style="margin-bottom:14px;">
       <div class="field" style="max-width:90px;">
@@ -1047,6 +1340,23 @@ function renderEdicao(pagina) {
     <button class="btn btn-save" id="btnSalvar" type="button">salvar alterações</button>
     <div class="save-msg" id="saveMsg"></div>
 
+    <div style="border-top:1px solid var(--hairline);margin:26px 0 18px;"></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;">login (opcional)</div>
+    <div style="font-size:11px;color:var(--graphite);margin-bottom:14px;">
+      defina um e-mail e senha pra acessar sem precisar do token toda vez.
+      ${pagina.email ? `e-mail atual: <strong>${pagina.email}</strong>` : 'você ainda não tem login definido.'}
+    </div>
+    <div class="field">
+      <label>e-mail</label>
+      <input type="email" id="fLoginEmail" value="${pagina.email || ''}" placeholder="voce@email.com">
+    </div>
+    <div class="field">
+      <label>senha (mínimo 8 caracteres)</label>
+      <input type="password" id="fLoginSenha" placeholder="••••••••">
+    </div>
+    <button class="btn btn-add" id="btnDefinirLogin" type="button" style="width:100%;">salvar login</button>
+    <div class="save-msg" id="loginDefMsg"></div>
+
     <div style="margin-top:26px;">
       <button class="btn btn-add" id="btnTogglePreview" type="button" style="width:100%;">mostrar preview ao vivo</button>
       <div id="previewWrap" style="display:none;margin-top:14px;padding:20px;border:1px dashed var(--hairline);border-radius:14px;background:rgba(0,0,0,0.015);">
@@ -1056,7 +1366,12 @@ function renderEdicao(pagina) {
   `;
 
   const fEstadoEl = document.getElementById('fEstado');
-  if (fEstadoEl) fEstadoEl.value = pagina.estado || '';
+  if (fEstadoEl) {
+    fEstadoEl.value = pagina.estado || '';
+    const fCidadeEl = document.getElementById('fCidade');
+    fEstadoEl.addEventListener('change', () => carregarCidadesParaEstado(fEstadoEl, fCidadeEl, 'listaCidadesEdicao'));
+    if (fEstadoEl.value) carregarCidadesParaEstado(fEstadoEl, fCidadeEl, 'listaCidadesEdicao');
+  }
 
   const blocosArea = document.getElementById('blocosEditArea');
   let draggedRow = null;
@@ -1275,6 +1590,7 @@ function renderEdicao(pagina) {
         foto_url: document.getElementById('fFoto').value.trim(),
         verificado: pagina.verificado,
         verificado_tipo: pagina.verificado_tipo,
+        categoria: document.getElementById('fCategoria') ? document.getElementById('fCategoria').value : pagina.categoria,
         blocos: coletarBlocosAtuais(),
       });
     }, 200);
@@ -1289,6 +1605,40 @@ function renderEdicao(pagina) {
 
   ['fTitulo', 'fBio', 'fFoto'].forEach(id => {
     document.getElementById(id).addEventListener('input', atualizarPreview);
+  });
+
+  // --- definir login (email/senha) ---
+  document.getElementById('btnDefinirLogin').addEventListener('click', async () => {
+    const btn = document.getElementById('btnDefinirLogin');
+    const msg = document.getElementById('loginDefMsg');
+    const email = document.getElementById('fLoginEmail').value.trim();
+    const senha = document.getElementById('fLoginSenha').value;
+
+    if (!email || senha.length < 8) {
+      msg.textContent = 'preencha um e-mail válido e uma senha com pelo menos 8 caracteres';
+      msg.className = 'save-msg err';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'salvando…';
+    try {
+      const res = await fetch(`${API_BASE}/definir_login.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, token, email, senha }),
+      });
+      const data = await res.json();
+      msg.textContent = data.mensagem || data.erro || 'algo deu errado';
+      msg.className = data.sucesso ? 'save-msg ok' : 'save-msg err';
+      if (data.sucesso) document.getElementById('fLoginSenha').value = '';
+    } catch (e) {
+      msg.textContent = 'erro de conexão com a api';
+      msg.className = 'save-msg err';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'salvar login';
+    }
   });
 
   // --- carregar estatísticas ---
@@ -1326,6 +1676,7 @@ function renderEdicao(pagina) {
       cor_fundo: document.getElementById('fFundo').value,
       estado: document.getElementById('fEstado') ? document.getElementById('fEstado').value : undefined,
       cidade: document.getElementById('fCidade') ? document.getElementById('fCidade').value.trim() : undefined,
+      categoria: document.getElementById('fCategoria').value,
       blocos: coletarBlocosAtuais(),
     };
 
