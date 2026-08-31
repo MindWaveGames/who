@@ -16,6 +16,9 @@
   connect-src 'self' https://editoramindwave.com.br https://api.bigdatacloud.net https://api.qrserver.com https://servicodados.ibge.gov.br;
   frame-src https://www.youtube.com https://open.spotify.com https://www.google.com https://calendly.com https://docs.google.com;
 ">
+<link rel="apple-touch-icon" sizes="180x180" href="https://editoramindwave.com.br/api/libs/logos/icon2.png">
+<link rel="icon" type="image/png" href="https://editoramindwave.com.br/api/libs/logos/icon1.png">
+<link rel="manifest" href="/chrome.json">
 </head>
 <body>
   <div class="scene">
@@ -777,6 +780,8 @@ const ICONE_QR = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 function arquivoLogoParaUrl(url) {
   try {
     const u = url.toLowerCase();
+    if (u.includes('who.editoramindwave.com.br')) return 'wmindwave';
+    if (u.includes('editoramindwave.com.br')) return 'emindwave';
     if (u.includes('wa.me') || u.includes('whatsapp.com')) return 'whatsapp';
     if (u.includes('instagram.com')) return 'instagram';
     if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
