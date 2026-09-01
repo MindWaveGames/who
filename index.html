@@ -92,8 +92,6 @@
       <div class="field">
         <select id="buscaCategoria" style="width:100%;border:1px solid var(--hairline);border-radius:10px;padding:9px 10px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:#fff;color:var(--ink);">
           <option value="">todas as categorias</option>
-          <option value="pf">pessoa física</option>
-          <option value="pj">pessoa jurídica</option>
         </select>
       </div>
       <div id="buscaResultados"></div>
@@ -125,8 +123,6 @@
       <div class="field">
         <select id="mapaCategoria" style="width:100%;border:1px solid var(--hairline);border-radius:10px;padding:9px 10px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:#fff;color:var(--ink);">
           <option value="">todas as categorias</option>
-          <option value="pf">pessoa física</option>
-          <option value="pj">pessoa jurídica</option>
         </select>
       </div>
       <button class="btn btn-add" id="btnUsarLocalizacao" type="button" style="width:100%;margin-bottom:10px;">usar minha localização</button>
@@ -733,11 +729,34 @@ function montarSeloVerificado(tipo) {
   return `<svg viewBox="0 0 24 24" fill="currentColor" style="${estiloBase}color:var(--accent);"><path d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/><path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="var(--paper)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
+const SEGMENTOS_NEGOCIO = {
+  academia: 'Academia', bar: 'Bar', barbearia: 'Barbearia', cafeteria: 'Cafeteria',
+  clinica: 'Clínica', escola: 'Escola', farmacia: 'Farmácia', hotel: 'Hotel',
+  loja_roupas: 'Loja de Roupas', padaria: 'Padaria', petshop: 'Pet Shop',
+  restaurante: 'Restaurante', salao_beleza: 'Salão de Beleza', servicos: 'Serviços',
+  supermercado: 'Supermercado', outro: 'Outro',
+};
+
 function montarSeloCategoria(categoria) {
-  if (categoria !== 'pf' && categoria !== 'pj') return '';
-  const label = categoria === 'pj' ? 'PJ' : 'PF';
+  const label = SEGMENTOS_NEGOCIO[categoria];
+  if (!label) return '';
   return `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--graphite);border:1px solid var(--hairline);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px;">${label}</span>`;
 }
+
+function popularSelectSegmentos(selectEl) {
+  Object.entries(SEGMENTOS_NEGOCIO).forEach(([valor, label]) => {
+    const opt = document.createElement('option');
+    opt.value = valor;
+    opt.textContent = label;
+    selectEl.appendChild(opt);
+  });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const selBusca = document.getElementById('buscaCategoria');
+  const selMapa = document.getElementById('mapaCategoria');
+  if (selBusca) popularSelectSegmentos(selBusca);
+  if (selMapa) popularSelectSegmentos(selMapa);
+});
 
 function gerarIdBloco() {
   return 'b_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -1289,11 +1308,12 @@ function renderEdicao(pagina) {
       <textarea id="fBio" rows="3">${pagina.bio || ''}</textarea>
     </div>
     <div class="field">
-      <label>categoria</label>
+      <label>categoria (aparece na busca de estabelecimentos)</label>
       <select id="fCategoria" style="width:100%;border:1px solid var(--hairline);border-radius:10px;padding:10px 8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fff;color:var(--ink);">
         <option value="">não informar</option>
-        <option value="pf" ${pagina.categoria === 'pf' ? 'selected' : ''}>Pessoa física</option>
-        <option value="pj" ${pagina.categoria === 'pj' ? 'selected' : ''}>Pessoa jurídica</option>
+        ${Object.entries(SEGMENTOS_NEGOCIO).map(([valor, label]) =>
+          `<option value="${valor}" ${pagina.categoria === valor ? 'selected' : ''}>${label}</option>`
+        ).join('')}
       </select>
     </div>
     ${pagina.verificado ? `
@@ -1351,12 +1371,18 @@ function renderEdicao(pagina) {
       defina um e-mail e senha pra acessar sem precisar do token toda vez.
       ${pagina.email ? `e-mail atual: <strong>${pagina.email}</strong>` : 'você ainda não tem login definido.'}
     </div>
+    ${pagina.tem_login ? `
+    <div class="field">
+      <label>senha atual (obrigatória pra trocar)</label>
+      <input type="password" id="fLoginSenhaAtual" placeholder="••••••••">
+    </div>
+    ` : ''}
     <div class="field">
       <label>e-mail</label>
       <input type="email" id="fLoginEmail" value="${pagina.email || ''}" placeholder="voce@email.com">
     </div>
     <div class="field">
-      <label>senha (mínimo 8 caracteres)</label>
+      <label>${pagina.tem_login ? 'nova senha' : 'senha'} (mínimo 8 caracteres)</label>
       <input type="password" id="fLoginSenha" placeholder="••••••••">
     </div>
     <button class="btn btn-add" id="btnDefinirLogin" type="button" style="width:100%;">salvar login</button>
@@ -1618,9 +1644,16 @@ function renderEdicao(pagina) {
     const msg = document.getElementById('loginDefMsg');
     const email = document.getElementById('fLoginEmail').value.trim();
     const senha = document.getElementById('fLoginSenha').value;
+    const campoSenhaAtual = document.getElementById('fLoginSenhaAtual');
+    const senhaAtual = campoSenhaAtual ? campoSenhaAtual.value : '';
 
     if (!email || senha.length < 8) {
       msg.textContent = 'preencha um e-mail válido e uma senha com pelo menos 8 caracteres';
+      msg.className = 'save-msg err';
+      return;
+    }
+    if (campoSenhaAtual && !senhaAtual) {
+      msg.textContent = 'digite sua senha atual pra confirmar a troca';
       msg.className = 'save-msg err';
       return;
     }
@@ -1631,7 +1664,7 @@ function renderEdicao(pagina) {
       const res = await fetch(`${API_BASE}/definir_login.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, token, email, senha }),
+        body: JSON.stringify({ slug, token, email, senha, senha_atual: senhaAtual }),
       });
       const data = await res.json();
       msg.textContent = data.mensagem || data.erro || 'algo deu errado';
