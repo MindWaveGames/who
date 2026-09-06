@@ -1,0 +1,1675 @@
+const API_BASE = 'https://editoramindwave.com.br/api';
+
+function getSlugETokenDaURL() {
+  const params = new URLSearchParams(window.location.search);
+  const redirected = params.get('p');
+  let path = redirected ? redirected : window.location.pathname;
+  path = path.replace(/^\/+|\/+$/g, '');
+  const slug = path.split('/')[0] || '';
+  const token = params.get('token') || '';
+  const sessaoDaUrl = params.get('sessao') || '';
+  return { slug, token, sessaoDaUrl };
+}
+
+const { slug, token, sessaoDaUrl } = getSlugETokenDaURL();
+
+// Se um código de sessão veio por um link de e-mail confiável (cadastro,
+// aprovação, "esqueci meu token"), guarda no sessionStorage — nunca na
+// URL de forma persistente — e limpa a URL visível pra não ficar exposto
+// em favoritos/histórico compartilhado.
+if (sessaoDaUrl && slug) {
+  sessionStorage.setItem('sessao:' + slug, sessaoDaUrl);
+  const urlLimpa = new URL(window.location.href);
+  urlLimpa.searchParams.delete('sessao');
+  window.history.replaceState({}, '', urlLimpa.toString());
+}
+
+function obterSessaoAtual() {
+  return sessionStorage.getItem('sessao:' + slug) || '';
+}
+const cardEl = document.getElementById('card');
+const promptEl = document.getElementById('promptText');
+promptEl.textContent = 'who://' + (slug || '…');
+if (!slug) {
+  document.getElementById('btnDenunciar').style.display = 'none';
+}
+
+// --- Modo dia/noite (afeta só o fundo externo, não o cartão) ---
+const ICONE_SOL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`;
+const ICONE_LUA = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>`;
+
+const btnTema = document.getElementById('btnTema');
+
+function aplicarPreferenciaTema() {
+  const salvo = localStorage.getItem('who_tema');
+  const claro = salvo === 'claro';
+  document.body.classList.toggle('tema-claro', claro);
+  btnTema.innerHTML = claro ? ICONE_SOL : ICONE_LUA;
+}
+
+btnTema.addEventListener('click', () => {
+  const claroAtual = document.body.classList.contains('tema-claro');
+  localStorage.setItem('who_tema', claroAtual ? 'escuro' : 'claro');
+  aplicarPreferenciaTema();
+});
+
+aplicarPreferenciaTema();
+
+// --- Denunciar perfil ---
+const ICONE_BANDEIRA = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v16M4 4h13l-2 4 2 4H4"/></svg>`;
+document.getElementById('btnDenunciar').innerHTML = ICONE_BANDEIRA;
+
+const denunciaOverlay = document.getElementById('denunciaOverlay');
+document.getElementById('btnDenunciar').addEventListener('click', () => {
+  document.getElementById('denunciaMotivo').value = 'golpe_fraude';
+  document.getElementById('denunciaDetalhes').value = '';
+  document.getElementById('denunciaMsg').textContent = '';
+  document.getElementById('denunciaMsg').className = 'save-msg';
+  denunciaOverlay.classList.add('aberto');
+});
+document.getElementById('denunciaFechar').addEventListener('click', () => denunciaOverlay.classList.remove('aberto'));
+denunciaOverlay.addEventListener('click', (e) => {
+  if (e.target === denunciaOverlay) denunciaOverlay.classList.remove('aberto');
+});
+document.getElementById('denunciaEnviar').addEventListener('click', async () => {
+  const btn = document.getElementById('denunciaEnviar');
+  const msg = document.getElementById('denunciaMsg');
+  btn.disabled = true;
+  btn.textContent = 'enviando…';
+
+  try {
+    const res = await fetch(`${API_BASE}/reportar.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug,
+        motivo: document.getElementById('denunciaMotivo').value,
+        detalhes: document.getElementById('denunciaDetalhes').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (data.sucesso) {
+      msg.textContent = data.mensagem;
+      msg.className = 'save-msg ok';
+      setTimeout(() => denunciaOverlay.classList.remove('aberto'), 2000);
+    } else {
+      msg.textContent = data.erro || 'não foi possível enviar a denúncia';
+      msg.className = 'save-msg err';
+    }
+  } catch (e) {
+    msg.textContent = 'erro de conexão com a api';
+    msg.className = 'save-msg err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'enviar denúncia';
+  }
+});
+
+// --- Suporte (abrir chamado) ---
+const suporteOverlay = document.getElementById('suporteOverlay');
+document.getElementById('btnAbrirSuporte').addEventListener('click', () => {
+  document.getElementById('suporteNome').value = '';
+  document.getElementById('suporteEmail').value = '';
+  document.getElementById('suporteAssunto').value = '';
+  document.getElementById('suporteMensagem').value = '';
+  document.getElementById('suporteMsg').textContent = '';
+  document.getElementById('suporteMsg').className = 'save-msg';
+  suporteOverlay.classList.add('aberto');
+});
+document.getElementById('suporteFechar').addEventListener('click', () => suporteOverlay.classList.remove('aberto'));
+suporteOverlay.addEventListener('click', (e) => {
+  if (e.target === suporteOverlay) suporteOverlay.classList.remove('aberto');
+});
+document.getElementById('suporteEnviar').addEventListener('click', async () => {
+  const btn = document.getElementById('suporteEnviar');
+  const msg = document.getElementById('suporteMsg');
+  const nome = document.getElementById('suporteNome').value.trim();
+  const email = document.getElementById('suporteEmail').value.trim();
+  const assunto = document.getElementById('suporteAssunto').value.trim();
+  const mensagem = document.getElementById('suporteMensagem').value.trim();
+
+  if (!nome || !email || !assunto || !mensagem) {
+    msg.textContent = 'preencha todos os campos';
+    msg.className = 'save-msg err';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'enviando…';
+  try {
+    const res = await fetch(`${API_BASE}/abrir_chamado.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, nome, email, assunto, mensagem }),
+    });
+    const data = await res.json();
+    if (data.sucesso) {
+      msg.textContent = data.mensagem;
+      msg.className = 'save-msg ok';
+      setTimeout(() => suporteOverlay.classList.remove('aberto'), 2500);
+    } else {
+      msg.textContent = data.erro || 'não foi possível enviar';
+      msg.className = 'save-msg err';
+    }
+  } catch (e) {
+    msg.textContent = 'erro de conexão com a api';
+    msg.className = 'save-msg err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'enviar chamado';
+  }
+});
+
+// --- Esqueci meu token / esqueci minha senha ---
+const esqueciOverlay = document.getElementById('esqueciOverlay');
+let esqueciModoAtual = 'token';
+
+function abrirEsqueci(modo) {
+  esqueciModoAtual = modo;
+  document.getElementById('esqueciTitulo').textContent = modo === 'token' ? 'recuperar token' : 'recuperar senha';
+  document.getElementById('esqueciEmail').value = '';
+  document.getElementById('esqueciMsg').textContent = '';
+  document.getElementById('esqueciMsg').className = 'save-msg';
+  esqueciOverlay.classList.add('aberto');
+}
+document.getElementById('esqueciFechar').addEventListener('click', () => esqueciOverlay.classList.remove('aberto'));
+esqueciOverlay.addEventListener('click', (e) => {
+  if (e.target === esqueciOverlay) esqueciOverlay.classList.remove('aberto');
+});
+document.getElementById('esqueciEnviar').addEventListener('click', async () => {
+  const btn = document.getElementById('esqueciEnviar');
+  const msg = document.getElementById('esqueciMsg');
+  const email = document.getElementById('esqueciEmail').value.trim();
+
+  if (!email) {
+    msg.textContent = 'digite seu e-mail';
+    msg.className = 'save-msg err';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'enviando…';
+  const endpoint = esqueciModoAtual === 'token' ? 'esqueci_token.php' : 'esqueci_senha.php';
+
+  try {
+    const res = await fetch(`${API_BASE}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    msg.textContent = data.mensagem || data.erro || 'solicitação enviada';
+    msg.className = data.sucesso ? 'save-msg ok' : 'save-msg err';
+  } catch (e) {
+    msg.textContent = 'erro de conexão com a api';
+    msg.className = 'save-msg err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'enviar';
+  }
+});
+
+// --- Solicitar cadastro (self-service com aprovação do admin) ---
+const solicitarOverlay = document.getElementById('solicitarOverlay');
+document.getElementById('solicitarFechar').addEventListener('click', () => solicitarOverlay.classList.remove('aberto'));
+solicitarOverlay.addEventListener('click', (e) => {
+  if (e.target === solicitarOverlay) solicitarOverlay.classList.remove('aberto');
+});
+document.getElementById('solicitarEnviar').addEventListener('click', async () => {
+  const btn = document.getElementById('solicitarEnviar');
+  const msg = document.getElementById('solicitarMsg');
+  const slugDesejado = document.getElementById('solicitarSlug').value.trim().replace(/^@/, '');
+  const titulo = document.getElementById('solicitarTitulo').value.trim();
+  const email = document.getElementById('solicitarEmail').value.trim();
+  const mensagem = document.getElementById('solicitarMensagem').value.trim();
+
+  if (!slugDesejado || !titulo || !email) {
+    msg.textContent = 'preencha @usuário, nome e e-mail';
+    msg.className = 'save-msg err';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'enviando…';
+
+  try {
+    const res = await fetch(`${API_BASE}/solicitar_cadastro.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug_desejado: slugDesejado, titulo, email_contato: email, mensagem }),
+    });
+    const data = await res.json();
+    if (data.sucesso) {
+      msg.textContent = data.mensagem;
+      msg.className = 'save-msg ok';
+      setTimeout(() => solicitarOverlay.classList.remove('aberto'), 2500);
+    } else {
+      msg.textContent = data.erro || 'não foi possível enviar a solicitação';
+      msg.className = 'save-msg err';
+    }
+  } catch (e) {
+    msg.textContent = 'erro de conexão com a api';
+    msg.className = 'save-msg err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'enviar solicitação';
+  }
+});
+
+// --- Botão home (volta pra raiz do site) ---
+const ICONE_HOME = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>`;
+document.getElementById('btnHome').innerHTML = ICONE_HOME;
+document.getElementById('btnHome').addEventListener('click', () => {
+  window.location.href = window.location.origin;
+});
+if (!slug) {
+  document.getElementById('btnHome').style.display = 'none';
+}
+
+// --- Modal de mapa (empresas por localização) ---
+const ICONE_MAPA = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 20l-6 3V7l6-3 6 3 6-3v16l-6 3-6-3z"/><path d="M9 4v16M15 7v16"/></svg>`;
+document.getElementById('btnMapa').innerHTML = ICONE_MAPA;
+
+const mapaOverlay = document.getElementById('mapaOverlay');
+const mapaEstado = document.getElementById('mapaEstado');
+const mapaCidade = document.getElementById('mapaCidade');
+const mapaMsg = document.getElementById('mapaMsg');
+const mapaResultados = document.getElementById('mapaResultados');
+
+mapaEstado.addEventListener('change', () => carregarCidadesParaEstado(mapaEstado, mapaCidade, 'listaCidadesMapa'));
+
+document.getElementById('btnMapa').addEventListener('click', () => {
+  mapaResultados.innerHTML = '';
+  mapaMsg.textContent = '';
+  mapaMsg.className = 'save-msg';
+  mapaOverlay.classList.add('aberto');
+});
+document.getElementById('mapaFechar').addEventListener('click', () => mapaOverlay.classList.remove('aberto'));
+mapaOverlay.addEventListener('click', (e) => {
+  if (e.target === mapaOverlay) mapaOverlay.classList.remove('aberto');
+});
+
+// Geolocalização é sempre opt-in: só ativa quando a pessoa clica neste botão,
+// nunca automaticamente ao abrir o app. Usa uma API gratuita de geocodificação
+// reversa (sem chave) só pra converter coordenadas em estado/cidade — a posição
+// exata não é enviada nem guardada no nosso servidor.
+document.getElementById('btnUsarLocalizacao').addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    mapaMsg.textContent = 'seu navegador não suporta geolocalização';
+    mapaMsg.className = 'save-msg err';
+    return;
+  }
+  mapaMsg.textContent = 'obtendo localização…';
+  mapaMsg.className = 'save-msg';
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    try {
+      const { latitude, longitude } = pos.coords;
+      const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=pt`);
+      const data = await res.json();
+      const uf = data.principalSubdivisionCode ? data.principalSubdivisionCode.split('-')[1] : '';
+      if (uf) mapaEstado.value = uf;
+      if (data.city) mapaCidade.value = data.city;
+      mapaMsg.textContent = uf ? 'localização preenchida, confira e busque' : 'não consegui identificar seu estado, preencha manualmente';
+      mapaMsg.className = uf ? 'save-msg ok' : 'save-msg err';
+    } catch (e) {
+      mapaMsg.textContent = 'não foi possível converter sua localização, preencha manualmente';
+      mapaMsg.className = 'save-msg err';
+    }
+  }, () => {
+    mapaMsg.textContent = 'permissão negada — preencha manualmente';
+    mapaMsg.className = 'save-msg err';
+  });
+});
+
+document.getElementById('mapaBuscarBtn').addEventListener('click', async () => {
+  const estado = mapaEstado.value;
+  const cidade = mapaCidade.value.trim();
+
+  if (!estado) {
+    mapaMsg.textContent = 'selecione um estado';
+    mapaMsg.className = 'save-msg err';
+    return;
+  }
+
+  mapaMsg.textContent = 'buscando…';
+  mapaMsg.className = 'save-msg';
+  mapaResultados.innerHTML = '';
+
+  try {
+    const params = new URLSearchParams({ estado });
+    if (cidade) params.set('cidade', cidade);
+    const categoriaMapa = document.getElementById('mapaCategoria').value;
+    if (categoriaMapa) params.set('categoria', categoriaMapa);
+    const res = await fetch(`${API_BASE}/buscar_local.php?${params.toString()}`);
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data || !data.sucesso) {
+      mapaMsg.textContent = (data && data.erro) || 'erro ao buscar';
+      mapaMsg.className = 'save-msg err';
+      return;
+    }
+
+    mapaMsg.textContent = '';
+    if (!data.resultados.length) {
+      mapaResultados.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--graphite);padding:10px;">nenhum perfil encontrado nessa região ainda</div>`;
+      return;
+    }
+
+    mapaResultados.innerHTML = data.resultados.map(p => `
+      <a href="/${p.slug}" class="link-row" style="margin-bottom:8px;text-decoration:none;">
+        <span class="label">
+          <span class="avatar" style="width:32px;height:32px;font-size:13px;">${p.foto_url ? `<img src="${p.foto_url}" alt="">` : iniciaisNome(p.titulo)}</span>
+          <span>${p.titulo}${p.verificado ? montarSeloVerificado(p.verificado_tipo) : ''}${montarSeloCategoriaSync(labelDoSegmentoSync(p.categoria))}<br><span style="font-size:11px;color:var(--graphite);">${p.cidade ? p.cidade + ' - ' : ''}${p.estado}</span></span>
+        </span>
+        <span class="arrow">→</span>
+      </a>
+    `).join('');
+  } catch (e) {
+    mapaMsg.textContent = 'erro de conexão com a api';
+    mapaMsg.className = 'save-msg err';
+  }
+});
+const ICONE_LUPA = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>`;
+document.getElementById('btnBuscar').innerHTML = ICONE_LUPA;
+
+const buscaOverlay = document.getElementById('buscaOverlay');
+const buscaInput = document.getElementById('buscaInput');
+const buscaResultados = document.getElementById('buscaResultados');
+let timeoutBusca = null;
+
+function iniciaisNome(nome) {
+  return (nome || '?').trim().split(/\s+/).slice(0,2).map(p => p[0]).join('').toUpperCase();
+}
+
+document.getElementById('btnBuscar').addEventListener('click', () => {
+  buscaInput.value = '';
+  buscaResultados.innerHTML = '';
+  buscaOverlay.classList.add('aberto');
+  setTimeout(() => buscaInput.focus(), 50);
+});
+document.getElementById('buscaFechar').addEventListener('click', () => buscaOverlay.classList.remove('aberto'));
+buscaOverlay.addEventListener('click', (e) => {
+  if (e.target === buscaOverlay) buscaOverlay.classList.remove('aberto');
+});
+
+const buscaCategoria = document.getElementById('buscaCategoria');
+buscaCategoria.addEventListener('change', () => buscaInput.dispatchEvent(new Event('input')));
+
+buscaInput.addEventListener('input', () => {
+  clearTimeout(timeoutBusca);
+  const termo = buscaInput.value.trim();
+  if (termo.length < 2) {
+    buscaResultados.innerHTML = '';
+    return;
+  }
+  timeoutBusca = setTimeout(async () => {
+    buscaResultados.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--graphite);padding:10px;">buscando…</div>`;
+    try {
+      const params = new URLSearchParams({ q: termo });
+      if (buscaCategoria.value) params.set('categoria', buscaCategoria.value);
+      const url = `${API_BASE}/buscar_perfis.php?${params.toString()}`;
+      const res = await fetch(url);
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data) {
+        console.error('Erro na busca de perfis. Status:', res.status, 'Corpo:', data);
+        buscaResultados.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--accent);padding:10px;">${(data && data.erro) || 'erro no servidor (status ' + res.status + '), veja o console'}</div>`;
+        return;
+      }
+      if (!data.sucesso) {
+        buscaResultados.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--accent);padding:10px;">${data.erro || 'erro ao buscar'}</div>`;
+        return;
+      }
+      if (!data.resultados.length) {
+        buscaResultados.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--graphite);padding:10px;">nenhum perfil encontrado</div>`;
+        return;
+      }
+      buscaResultados.innerHTML = data.resultados.map(p => `
+        <a href="/${p.slug}" class="link-row" style="margin-bottom:8px;text-decoration:none;">
+          <span class="label">
+            <span class="avatar" style="width:32px;height:32px;font-size:13px;">${p.foto_url ? `<img src="${p.foto_url}" alt="">` : iniciaisNome(p.titulo)}</span>
+            <span>${p.titulo}${p.verificado ? montarSeloVerificado(p.verificado_tipo) : ''}${montarSeloCategoriaSync(labelDoSegmentoSync(p.categoria))}<br><span style="font-size:11px;color:var(--graphite);">@${p.slug}</span></span>
+          </span>
+          <span class="arrow">→</span>
+        </a>
+      `).join('');
+    } catch (e) {
+      console.error('Erro na busca de perfis:', e);
+      buscaResultados.innerHTML = `<div style="text-align:center;font-size:12px;color:var(--accent);padding:10px;">não foi possível conectar à api (veja o console para detalhes)</div>`;
+    }
+  }, 300);
+});
+
+function iniciais(nome) {
+  return (nome || '?').trim().split(/\s+/).slice(0,2).map(p => p[0]).join('').toUpperCase();
+}
+
+const LOGOS_BASE = 'https://editoramindwave.com.br/api/libs/logos';
+
+// --- Embeds seguros: lista branca de serviços permitidos ---
+// Cada função valida o domínio E transforma a URL colada pelo usuário
+// no endereço correto de embed daquele serviço. Nenhuma URL fora
+// desses domínios específicos é aceita.
+const EMBED_SERVICOS = {
+  youtube: {
+    nome: 'YouTube',
+    placeholder: 'https://www.youtube.com/watch?v=...',
+    ajuda: 'cole o link do vídeo (o mesmo que aparece na barra de endereço)',
+    hosts: ['www.youtube.com', 'youtube.com', 'youtu.be', 'm.youtube.com'],
+    altura: null, // usa proporção 16:9
+    montarSrc(url) {
+      let id = '';
+      const u = new URL(url);
+      if (u.hostname.includes('youtu.be')) id = u.pathname.slice(1);
+      else if (u.pathname.startsWith('/embed/')) id = u.pathname.split('/embed/')[1];
+      else id = u.searchParams.get('v') || '';
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    },
+  },
+  spotify: {
+    nome: 'Spotify',
+    placeholder: 'https://open.spotify.com/track/...',
+    ajuda: 'cole o link de compartilhamento de uma música, álbum ou playlist',
+    hosts: ['open.spotify.com'],
+    altura: 152,
+    montarSrc(url) {
+      if (url.includes('/embed/')) return url;
+      return url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+    },
+  },
+  googlemaps: {
+    nome: 'Google Maps',
+    placeholder: 'https://www.google.com/maps/embed?pb=...',
+    ajuda: 'no Google Maps: Compartilhar → Incorporar um mapa → copie só o link de dentro de src="..."',
+    hosts: ['www.google.com'],
+    altura: 220,
+    montarSrc(url) { return url; },
+  },
+  calendly: {
+    nome: 'Calendly',
+    placeholder: 'https://calendly.com/seu-usuario/reuniao',
+    ajuda: 'cole o link normal da sua página de agendamento',
+    hosts: ['calendly.com', 'www.calendly.com'],
+    altura: 630,
+    montarSrc(url) { return url; },
+  },
+  googleforms: {
+    nome: 'Google Forms',
+    placeholder: 'https://docs.google.com/forms/d/e/.../viewform',
+    ajuda: 'cole o link normal do formulário (o de responder, não o de editar)',
+    hosts: ['docs.google.com'],
+    altura: 600,
+    montarSrc(url) {
+      if (url.includes('embedded=true')) return url;
+      return url + (url.includes('?') ? '&' : '?') + 'embedded=true';
+    },
+  },
+};
+
+function validarUrlEmbed(servico, url) {
+  try {
+    const u = new URL(url);
+    const cfg = EMBED_SERVICOS[servico];
+    if (!cfg) return false;
+    if (u.protocol !== 'https:') return false;
+    if (servico === 'googlemaps' && !u.pathname.startsWith('/maps/embed')) return false;
+    if (servico === 'googleforms' && !u.pathname.startsWith('/forms/')) return false;
+    return cfg.hosts.includes(u.hostname);
+  } catch (e) {
+    return false;
+  }
+}
+
+// Ícone genérico para blocos do tipo "pop-up" (não é uma rede social)
+const ICONE_POPUP = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12h8M12 8v8"/></svg>`;
+
+function registrarClique(slugAtual, blocoId) {
+  try {
+    const dados = JSON.stringify({ slug: slugAtual, bloco_id: blocoId });
+    const blob = new Blob([dados], { type: 'application/json' });
+    navigator.sendBeacon(`${API_BASE}/registrar_clique.php`, blob);
+  } catch (e) {
+    // rastreamento é best-effort, nunca deve travar a navegação do usuário
+  }
+}
+
+function montarSeloVerificado(tipo) {
+  const estiloBase = 'width:14px;height:14px;flex-shrink:0;vertical-align:-2px;display:inline-block;';
+  if (tipo === 'institucional') {
+    return `<svg viewBox="0 0 24 24" style="${estiloBase}"><defs><linearGradient id="gradDourado" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF3C4"/><stop offset="35%" stop-color="#E5B84B"/>
+      <stop offset="65%" stop-color="#C99A2E"/><stop offset="100%" stop-color="#FFE9A8"/>
+    </linearGradient></defs>
+    <path fill="url(#gradDourado)" d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/>
+    <path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="#4A3600" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+  return `<svg viewBox="0 0 24 24" fill="currentColor" style="${estiloBase}color:var(--accent);"><path d="M12 2l2.4 1.7 2.9-.4 1 2.8 2.6 1.4-.6 2.9 1.6 2.6-1.6 2.6.6 2.9-2.6 1.4-1 2.8-2.9-.4L12 22l-2.4-1.7-2.9.4-1-2.8-2.6-1.4.6-2.9L2.1 12l1.6-2.6-.6-2.9 2.6-1.4 1-2.8 2.9.4L12 2z"/><path d="M9.5 12.5l1.8 1.8 3.5-3.8" stroke="var(--paper)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+// --- Segmentos de negócio (agora vêm do banco, cadastráveis pelo admin) ---
+let cacheSegmentos = null;
+
+async function buscarSegmentos() {
+  if (cacheSegmentos) return cacheSegmentos;
+  try {
+    const res = await fetch(`${API_BASE}/listar_segmentos.php`);
+    const data = await res.json();
+    cacheSegmentos = data.sucesso ? data.segmentos : [];
+  } catch (e) {
+    cacheSegmentos = [];
+  }
+  return cacheSegmentos;
+}
+
+async function popularSelectSegmentos(selectEl, valorSelecionado) {
+  const segmentos = await buscarSegmentos();
+  segmentos.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.slug;
+    opt.textContent = s.label;
+    if (s.slug === valorSelecionado) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
+
+async function labelDoSegmento(slugSegmento) {
+  const segmentos = await buscarSegmentos();
+  const achado = segmentos.find(s => s.slug === slugSegmento);
+  return achado ? achado.label : null;
+}
+
+function labelDoSegmentoSync(slugSegmento) {
+  if (!cacheSegmentos || !slugSegmento) return null;
+  const achado = cacheSegmentos.find(s => s.slug === slugSegmento);
+  return achado ? achado.label : null;
+}
+
+function montarSeloCategoriaSync(labelTexto) {
+  if (!labelTexto) return '';
+  return `<span style="font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:var(--graphite);border:1px solid var(--hairline);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px;">${labelTexto}</span>`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const selBusca = document.getElementById('buscaCategoria');
+  const selMapa = document.getElementById('mapaCategoria');
+  if (selBusca) popularSelectSegmentos(selBusca);
+  if (selMapa) popularSelectSegmentos(selMapa);
+});
+
+function gerarIdBloco() {
+  return 'b_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// --- Autocomplete de cidades por estado (dados oficiais do IBGE) ---
+const cacheCidadesPorUf = {};
+
+async function carregarCidadesParaEstado(ufSelectEl, cidadeInputEl, datalistId) {
+  const uf = ufSelectEl.value;
+  if (!uf) return;
+
+  let datalist = document.getElementById(datalistId);
+  if (!datalist) {
+    datalist = document.createElement('datalist');
+    datalist.id = datalistId;
+    document.body.appendChild(datalist);
+  }
+  cidadeInputEl.setAttribute('list', datalistId);
+
+  if (cacheCidadesPorUf[uf]) {
+    datalist.innerHTML = cacheCidadesPorUf[uf];
+    return;
+  }
+
+  try {
+    const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`);
+    const cidades = await res.json();
+    const opcoes = cidades.map(c => `<option value="${c.nome}">`).join('');
+    cacheCidadesPorUf[uf] = opcoes;
+    datalist.innerHTML = opcoes;
+  } catch (e) {
+    // se a API do IBGE falhar, a pessoa ainda pode digitar livremente
+  }
+}
+
+const ICONE_COMPARTILHAR = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.8M8.6 13.4l6.8 3.8"/></svg>`;
+const ICONE_QR = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M14 21h3M21 14v3M21 21h.01"/></svg>`;
+
+function arquivoLogoParaUrl(url) {
+  try {
+    const u = url.toLowerCase();
+    if (u.includes('wa.me') || u.includes('whatsapp.com')) return 'whatsapp';
+    if (u.includes('instagram.com')) return 'instagram';
+    if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
+    if (u.includes('tiktok.com')) return 'tiktok';
+    if (u.includes('twitter.com') || u.includes('x.com')) return 'twitter';
+    if (u.includes('facebook.com')) return 'facebook';
+    if (u.includes('linkedin.com')) return 'linkedin';
+    if (u.includes('github.com')) return 'github';
+    if (u.includes('t.me') || u.includes('telegram.')) return 'telegram';
+    if (u.includes('spotify.com')) return 'spotify';
+    if (u.includes('discord.com') || u.includes('discord.gg')) return 'discord';
+    if (u.includes('pinterest.')) return 'pinterest';
+    if (u.includes('reddit.com')) return 'reddit';
+    if (u.includes('snapchat.com')) return 'snapchat';
+    if (u.includes('soundcloud.com')) return 'soundcloud';
+    if (u.includes('steampowered.com') || u.includes('steamcommunity.com')) return 'steam';
+    if (u.includes('tumblr.com')) return 'tumblr';
+    if (u.includes('twitch.tv')) return 'twitch';
+    if (u.includes('behance.net')) return 'behance';
+    if (u.includes('yahoo.com')) return 'yahoo';
+    if (u.includes('maps.google.') || u.includes('goo.gl/maps')) return 'googlemaps';
+    if (u.includes('who.editoramindwave.com.br')) return 'wmindwave';
+    if (u.includes('editoramindwave.com.br')) return 'emindwave';
+    if (u.includes('google.com')) return 'google';
+    if (u.startsWith('mailto:')) return 'email';
+    if (u.startsWith('tel:')) return 'phone';
+    return 'links';
+  } catch (e) {
+    return 'links';
+  }
+}
+
+function iconeImgParaUrl(url) {
+  const arquivo = arquivoLogoParaUrl(url);
+  return `<img src="${LOGOS_BASE}/${arquivo}.svg" alt="" loading="lazy">`;
+}
+
+function aplicarCorTema(hexAccent, hexFundo) {
+  document.documentElement.style.setProperty('--accent', hexAccent || '#FF4F32');
+  document.documentElement.style.setProperty('--paper', hexFundo || '#F7F5F1');
+}
+
+// --- Modal de pop-up (senha de wifi, pix, etc.) ---
+const popupOverlay = document.getElementById('popupOverlay');
+const popupTitulo = document.getElementById('popupTitulo');
+const popupConteudo = document.getElementById('popupConteudo');
+const popupCopiar = document.getElementById('popupCopiar');
+const popupFechar = document.getElementById('popupFechar');
+
+function abrirPopup(titulo, conteudo, copiavel) {
+  popupTitulo.textContent = titulo;
+  popupConteudo.textContent = conteudo;
+  popupCopiar.style.display = copiavel === false ? 'none' : 'block';
+  popupCopiar.textContent = 'copiar';
+  popupCopiar.classList.remove('copiado');
+  popupOverlay.classList.add('aberto');
+}
+
+function fecharPopup() {
+  popupOverlay.classList.remove('aberto');
+}
+
+popupFechar.addEventListener('click', fecharPopup);
+popupOverlay.addEventListener('click', (e) => {
+  if (e.target === popupOverlay) fecharPopup();
+});
+popupCopiar.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(popupConteudo.textContent);
+    popupCopiar.textContent = 'copiado';
+    popupCopiar.classList.add('copiado');
+    setTimeout(() => {
+      popupCopiar.textContent = 'copiar';
+      popupCopiar.classList.remove('copiado');
+    }, 1500);
+  } catch (e) {
+    popupCopiar.textContent = 'não foi possível copiar';
+  }
+});
+
+function renderEstadoVazio() {
+  cardEl.innerHTML = `
+    <div style="text-align:center;margin-bottom:18px;">
+      <div class="big" style="font-family:'Space Grotesk',sans-serif;font-size:19px;color:var(--ink);margin-bottom:4px;">encontrar seu perfil</div>
+      <div style="font-size:12px;color:var(--graphite);">acesse com seu token ou com login e senha</div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="btn btn-add" id="tabToken" type="button" style="flex:1;"></button>
+      <button class="btn btn-add" id="tabLogin" type="button" style="flex:1;"></button>
+    </div>
+
+    <div id="painelToken" class="fallback-form">
+      <div class="field">
+        <label>@usuário</label>
+        <input type="text" id="fbSlug" placeholder="seu-usuario">
+      </div>
+      <div class="field">
+        <label>token</label>
+        <input type="text" id="fbToken" placeholder="tk_xxxxxxxx">
+      </div>
+      <button class="btn btn-save" id="btnFbAcessar" type="button">acessar meu perfil</button>
+      <div class="save-msg" id="fbMsg"></div>
+      <div style="text-align:center;margin-top:10px;">
+        <button class="btn-link-discreto" id="btnAbrirEsqueciToken" type="button">esqueci meu token</button>
+      </div>
+    </div>
+
+    <div id="painelLogin" class="fallback-form" style="display:none;">
+      <div class="field">
+        <label>e-mail</label>
+        <input type="email" id="loginEmail" placeholder="voce@email.com">
+      </div>
+      <div class="field">
+        <label>senha</label>
+        <input type="password" id="loginSenha" placeholder="••••••••">
+      </div>
+      <button class="btn btn-save" id="btnLoginEntrar" type="button">entrar</button>
+      <div class="save-msg" id="loginMsg"></div>
+      <div style="text-align:center;margin-top:10px;">
+        <button class="btn-link-discreto" id="btnAbrirEsqueciSenha" type="button">esqueci minha senha</button>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:18px;">
+      <button class="btn btn-add" id="btnAbrirSolicitar" type="button">ainda não tenho conta — solicitar acesso</button>
+    </div>
+  `;
+
+  const tabToken = document.getElementById('tabToken');
+  const tabLogin = document.getElementById('tabLogin');
+  const painelToken = document.getElementById('painelToken');
+  const painelLogin = document.getElementById('painelLogin');
+
+  function ativarAba(aba) {
+    const ehToken = aba === 'token';
+    painelToken.style.display = ehToken ? 'block' : 'none';
+    painelLogin.style.display = ehToken ? 'none' : 'block';
+    tabToken.style.background = ehToken ? 'var(--ink)' : 'transparent';
+    tabToken.style.color = ehToken ? 'var(--paper)' : 'var(--ink)';
+    tabLogin.style.background = ehToken ? 'transparent' : 'var(--ink)';
+    tabLogin.style.color = ehToken ? 'var(--ink)' : 'var(--paper)';
+  }
+  tabToken.textContent = 'com token';
+  tabLogin.textContent = 'com login';
+  tabToken.addEventListener('click', () => ativarAba('token'));
+  tabLogin.addEventListener('click', () => ativarAba('login'));
+  ativarAba('token');
+
+  function tentarAcessar() {
+    const slugDigitado = document.getElementById('fbSlug').value.trim().replace(/^@/, '');
+    const tokenDigitado = document.getElementById('fbToken').value.trim();
+    const msg = document.getElementById('fbMsg');
+
+    if (!slugDigitado) {
+      msg.textContent = 'digite seu @usuário';
+      msg.className = 'save-msg err';
+      return;
+    }
+
+    const destino = tokenDigitado
+      ? `${window.location.origin}/${encodeURIComponent(slugDigitado)}?token=${encodeURIComponent(tokenDigitado)}`
+      : `${window.location.origin}/${encodeURIComponent(slugDigitado)}`;
+    window.location.href = destino;
+  }
+
+  document.getElementById('btnFbAcessar').addEventListener('click', tentarAcessar);
+  document.getElementById('fbToken').addEventListener('keydown', (e) => { if (e.key === 'Enter') tentarAcessar(); });
+
+  async function tentarLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const senha = document.getElementById('loginSenha').value;
+    const msg = document.getElementById('loginMsg');
+    const btn = document.getElementById('btnLoginEntrar');
+
+    if (!email || !senha) {
+      msg.textContent = 'preencha e-mail e senha';
+      msg.className = 'save-msg err';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'entrando…';
+    try {
+      const res = await fetch(`${API_BASE}/login.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha }),
+      });
+      const data = await res.json();
+      if (data.sucesso) {
+        sessionStorage.setItem('sessao:' + data.slug, data.sessao);
+        window.location.href = `${window.location.origin}/${encodeURIComponent(data.slug)}?token=${encodeURIComponent(data.token)}`;
+      } else {
+        msg.textContent = data.erro || 'não foi possível entrar';
+        msg.className = 'save-msg err';
+      }
+    } catch (e) {
+      msg.textContent = 'erro de conexão com a api';
+      msg.className = 'save-msg err';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'entrar';
+    }
+  }
+  document.getElementById('btnLoginEntrar').addEventListener('click', tentarLogin);
+  document.getElementById('loginSenha').addEventListener('keydown', (e) => { if (e.key === 'Enter') tentarLogin(); });
+
+  document.getElementById('btnAbrirEsqueciToken').addEventListener('click', () => abrirEsqueci('token'));
+  document.getElementById('btnAbrirEsqueciSenha').addEventListener('click', () => abrirEsqueci('senha'));
+
+  document.getElementById('btnAbrirSolicitar').addEventListener('click', () => {
+    document.getElementById('solicitarSlug').value = '';
+    document.getElementById('solicitarTitulo').value = '';
+    document.getElementById('solicitarEmail').value = '';
+    document.getElementById('solicitarMensagem').value = '';
+    document.getElementById('solicitarMsg').textContent = '';
+    document.getElementById('solicitarMsg').className = 'save-msg';
+    document.getElementById('solicitarOverlay').classList.add('aberto');
+  });
+}
+
+function renderErro(msg) {
+  cardEl.innerHTML = `
+    <div class="state-box">
+      <div class="big">registro não encontrado</div>
+      ${msg || 'esse @ ainda não existe na base'}
+    </div>`;
+}
+
+function renderBlocoLeitura(bloco, idx) {
+  if (bloco.tipo === 'texto') {
+    return `<div class="texto-bloco">${bloco.conteudo}</div>`;
+  }
+  if (bloco.tipo === 'popup') {
+    return `
+      <div class="link-row popup-row" data-popup-idx="${idx}">
+        <span class="label"><span class="icone">${ICONE_POPUP}</span>${bloco.titulo}</span>
+        <span class="arrow">→</span>
+      </div>`;
+  }
+  if (bloco.tipo === 'embed') {
+    const cfg = EMBED_SERVICOS[bloco.servico];
+    if (!cfg || !validarUrlEmbed(bloco.servico, bloco.url)) {
+      return `<div class="texto-bloco" style="color:var(--graphite);">não foi possível carregar este embed</div>`;
+    }
+    const src = cfg.montarSrc(bloco.url);
+    if (!src) return `<div class="texto-bloco" style="color:var(--graphite);">link inválido para ${cfg.nome}</div>`;
+    const estiloAltura = cfg.altura ? `height:${cfg.altura}px;` : `aspect-ratio:16/9;height:auto;`;
+    return `
+      <div class="embed-wrap" style="${estiloAltura}">
+        <iframe src="${src}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+          allow="encrypted-media; picture-in-picture" frameborder="0"></iframe>
+      </div>`;
+  }
+  const icone = iconeImgParaUrl(bloco.url);
+  return `
+    <a class="link-row" href="${bloco.url}" target="_blank" rel="noopener" data-bloco-id="${bloco.id || ''}">
+      <span class="label"><span class="icone">${icone}</span>${bloco.titulo}</span>
+      <span class="arrow">→</span>
+    </a>`;
+}
+
+function configurarBotaoCompartilhar(pagina) {
+  const btn = document.getElementById('btnCompartilhar');
+  // Usa o proxy de Open Graph pra quem recebe o link ver a prévia certa
+  // (foto, nome, bio) no WhatsApp/Instagram/Telegram, já que o site
+  // principal é uma SPA e crawlers não executam o JavaScript dela.
+  const urlCompartilhavel = `${API_BASE}/og.php?slug=${encodeURIComponent(pagina.slug)}`;
+
+  btn.addEventListener('click', async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: pagina.titulo, text: `Confira @${pagina.slug}`, url: urlCompartilhavel });
+      } catch (e) {
+        // usuário cancelou o compartilhamento, sem problema
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(urlCompartilhavel);
+        const textoOriginal = btn.innerHTML;
+        btn.innerHTML = 'link copiado';
+        setTimeout(() => { btn.innerHTML = textoOriginal; }, 1800);
+      } catch (e) {
+        // falha silenciosa: não é crítico
+      }
+    }
+  });
+}
+
+function configurarBotaoQrCode(pagina) {
+  const btn = document.getElementById('btnQrCode');
+  const qrOverlay = document.getElementById('qrOverlay');
+  const qrImagem = document.getElementById('qrImagem');
+  const qrBaixar = document.getElementById('qrBaixar');
+  const qrFechar = document.getElementById('qrFechar');
+  const urlPerfil = window.location.origin + '/' + pagina.slug;
+
+  btn.addEventListener('click', () => {
+    const src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(urlPerfil)}`;
+    qrImagem.src = src;
+    qrBaixar.href = src;
+    qrBaixar.download = `qrcode-${pagina.slug}.png`;
+    qrOverlay.classList.add('aberto');
+  });
+
+  qrFechar.addEventListener('click', () => qrOverlay.classList.remove('aberto'));
+  qrOverlay.addEventListener('click', (e) => {
+    if (e.target === qrOverlay) qrOverlay.classList.remove('aberto');
+  });
+}
+
+function configurarBotaoCurtir(pagina) {
+  const chave = 'curtiu:' + pagina.slug;
+  let jaCurtiu = localStorage.getItem(chave) === '1';
+  const btn = document.getElementById('btnCurtir');
+  const contador = document.getElementById('curtirContador');
+  const coracaoVazio = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7.5-4.6-10-9C.4 8.6 2 4 6.3 4 9 4 11 6 12 7.5 13 6 15 4 17.7 4 22 4 23.6 8.6 22 12c-2.5 4.4-10 9-10 9z"/></svg>`;
+  const coracaoCheio = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-10-9C.4 8.6 2 4 6.3 4 9 4 11 6 12 7.5 13 6 15 4 17.7 4 22 4 23.6 8.6 22 12c-2.5 4.4-10 9-10 9z"/></svg>`;
+
+  function atualizarVisual() {
+    btn.classList.toggle('curtido', jaCurtiu);
+    btn.querySelector('.icone-coracao').innerHTML = jaCurtiu ? coracaoCheio : coracaoVazio;
+    btn.setAttribute('aria-label', jaCurtiu ? 'descurtir perfil' : 'curtir perfil');
+  }
+  atualizarVisual();
+  contador.textContent = pagina.likes || 0;
+
+  btn.onclick = async () => {
+    if (btn.dataset.processando === '1') return;
+    btn.dataset.processando = '1';
+
+    const acao = jaCurtiu ? 'descurtir' : 'curtir';
+
+    try {
+      const res = await fetch(`${API_BASE}/curtir.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: pagina.slug, acao }),
+      });
+      const data = await res.json();
+      if (data.sucesso) {
+        jaCurtiu = !jaCurtiu;
+        if (jaCurtiu) {
+          localStorage.setItem(chave, '1');
+        } else {
+          localStorage.removeItem(chave);
+        }
+        atualizarVisual();
+        contador.textContent = data.likes;
+      }
+    } catch (e) {
+      // curtida é algo leve, falha silenciosa é aceitável aqui
+    } finally {
+      btn.dataset.processando = '0';
+    }
+  };
+}
+
+function renderLeitura(pagina) {
+  aplicarCorTema(pagina.cor_tema, pagina.cor_fundo);
+
+  const blocosHtml = (pagina.blocos || []).map((b, i) => renderBlocoLeitura(b, i)).join('');
+  const fotoHtml = pagina.foto_url
+    ? `<img src="${pagina.foto_url}" alt="${pagina.titulo}">`
+    : iniciais(pagina.titulo);
+
+  cardEl.innerHTML = `
+    <div class="header-row">
+      <div class="avatar">${fotoHtml}</div>
+      <div class="header-text">
+        <div class="handle">@${pagina.slug}${pagina.verificado ? montarSeloVerificado(pagina.verificado_tipo) : ''}${montarSeloCategoriaSync(labelDoSegmentoSync(pagina.categoria))}</div>
+        <h1>${pagina.titulo}</h1>
+      </div>
+    </div>
+    <div class="acoes-row">
+      <button class="like-btn" id="btnCurtir" type="button" aria-label="curtir perfil">
+        <span class="icone-coracao"></span>
+        <span id="curtirContador">0</span>
+      </button>
+      <button class="action-btn" id="btnCompartilhar" type="button" aria-label="compartilhar perfil">${ICONE_COMPARTILHAR} compartilhar</button>
+      <button class="action-btn" id="btnQrCode" type="button" aria-label="gerar QR code do perfil">${ICONE_QR} qr code</button>
+    </div>
+    ${pagina.bio ? `<p class="bio">${pagina.bio}</p>` : ''}
+    <div class="blocos">${blocosHtml || '<span style="color:var(--graphite);font-size:14px;">nenhum conteúdo cadastrado ainda</span>'}</div>
+  `;
+
+  cardEl.querySelectorAll('.popup-row').forEach(el => {
+    const idx = parseInt(el.dataset.popupIdx, 10);
+    const bloco = pagina.blocos[idx];
+    el.addEventListener('click', () => abrirPopup(bloco.titulo, bloco.conteudo, bloco.copiavel));
+  });
+
+  cardEl.querySelectorAll('.link-row[data-bloco-id]').forEach(el => {
+    const blocoId = el.dataset.blocoId;
+    if (!blocoId) return;
+    el.addEventListener('click', () => registrarClique(pagina.slug, blocoId));
+  });
+
+  configurarBotaoCurtir(pagina);
+  configurarBotaoCompartilhar(pagina);
+  configurarBotaoQrCode(pagina);
+}
+
+function montarPreviewHtml(dados) {
+  const blocosHtml = (dados.blocos || []).map((b, i) => renderBlocoLeitura(b, i)).join('');
+  const fotoHtml = dados.foto_url
+    ? `<img src="${dados.foto_url}" alt="">`
+    : iniciais(dados.titulo);
+  return `
+    <div class="header-row">
+      <div class="avatar">${fotoHtml}</div>
+      <div class="header-text">
+        <div class="handle">@${dados.slug}${dados.verificado ? montarSeloVerificado(dados.verificado_tipo) : ''}${montarSeloCategoriaSync(labelDoSegmentoSync(dados.categoria))}</div>
+        <h1>${dados.titulo || '(sem título)'}</h1>
+      </div>
+    </div>
+    ${dados.bio ? `<p class="bio">${dados.bio}</p>` : ''}
+    <div class="blocos">${blocosHtml || '<span style="color:var(--graphite);font-size:14px;">nenhum conteúdo cadastrado ainda</span>'}</div>
+  `;
+}
+
+function montarPainelEstatisticas(stats) {
+  const maxVisita = Math.max(1, ...stats.visitas_semana.map(d => d.total));
+  const barrasHtml = stats.visitas_semana.map(d => {
+    const altura = Math.round((d.total / maxVisita) * 28) + 4;
+    const diaLabel = new Date(d.data + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0,3);
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+        <div style="width:100%;max-width:18px;height:${altura}px;background:var(--accent);border-radius:3px 3px 0 0;" title="${d.total} visitas"></div>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--graphite);">${diaLabel}</span>
+      </div>`;
+  }).join('');
+
+  const cliquesHtml = stats.cliques.length
+    ? stats.cliques.slice(0, 5).map(c => `
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;">
+          <span style="color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;">${c.titulo}</span>
+          <span style="color:var(--graphite);font-family:'IBM Plex Mono',monospace;">${c.total}</span>
+        </div>`).join('')
+    : `<span style="color:var(--graphite);font-size:12px;">nenhum clique registrado ainda</span>`;
+
+  return `
+    <div style="display:flex;gap:16px;margin-bottom:10px;">
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">${stats.likes}</div><div style="font-size:10px;color:var(--graphite);font-family:'IBM Plex Mono',monospace;">curtidas</div></div>
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">${stats.visitas_total}</div><div style="font-size:10px;color:var(--graphite);font-family:'IBM Plex Mono',monospace;">visitas (total)</div></div>
+      <div><div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;">${stats.total_semana}</div><div style="font-size:10px;color:var(--graphite);font-family:'IBM Plex Mono',monospace;">últimos 7 dias</div></div>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:6px;height:44px;margin-bottom:14px;">${barrasHtml}</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--graphite);text-transform:lowercase;margin-bottom:6px;">cliques por link</div>
+    ${cliquesHtml}
+    <button class="btn btn-add" id="btnBaixarCsv" type="button" style="margin-top:14px;">baixar estatísticas (csv)</button>
+  `;
+}
+
+function gerarCsvEstatisticas(stats, slugAtual) {
+  function escapar(valor) {
+    const texto = String(valor ?? '');
+    return /[",\n]/.test(texto) ? '"' + texto.replace(/"/g, '""') + '"' : texto;
+  }
+  const linhas = [];
+  linhas.push('Visitas por dia');
+  linhas.push('Data,Total');
+  stats.visitas_semana.forEach(d => linhas.push(`${d.data},${d.total}`));
+  linhas.push('');
+  linhas.push('Cliques por link');
+  linhas.push('Link,Cliques');
+  stats.cliques.forEach(c => linhas.push(`${escapar(c.titulo)},${c.total}`));
+  linhas.push('');
+  linhas.push('Resumo geral');
+  linhas.push(`Curtidas,${stats.likes}`);
+  linhas.push(`Visitas totais,${stats.visitas_total}`);
+
+  const blob = new Blob([linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `estatisticas-${slugAtual}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function renderEdicao(pagina) {
+  aplicarCorTema(pagina.cor_tema, pagina.cor_fundo);
+
+  const blocos = pagina.blocos && pagina.blocos.length ? pagina.blocos : [{tipo:'link', titulo:'', url:''}];
+  // Garante que todo bloco tenha um id estável (necessário pra rastrear cliques)
+  blocos.forEach(b => { if (!b.id) b.id = gerarIdBloco(); });
+
+  cardEl.innerHTML = `
+    <div class="edit-banner">✎ modo edição</div>
+    <div class="handle" style="margin-bottom:14px;">@${pagina.slug}${pagina.verificado ? montarSeloVerificado(pagina.verificado_tipo) : ''}</div>
+
+    <div id="statsPanel" style="border:1px solid var(--hairline);border-radius:12px;padding:14px;margin-bottom:18px;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;">estatísticas</div>
+      <div id="statsConteudo" style="color:var(--graphite);font-size:12px;font-family:'IBM Plex Mono',monospace;">carregando…</div>
+    </div>
+
+    <div class="field">
+      <label>título</label>
+      <input type="text" id="fTitulo" value="${pagina.titulo || ''}">
+    </div>
+    <div class="field">
+      <label>bio (use enter para pular linha)</label>
+      <textarea id="fBio" rows="3">${pagina.bio || ''}</textarea>
+    </div>
+    ${pagina.verificado ? `
+    <div class="field">
+      <label>categoria (aparece na busca de estabelecimentos)</label>
+      <select id="fCategoria" style="width:100%;border:1px solid var(--hairline);border-radius:10px;padding:10px 8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fff;color:var(--ink);">
+        <option value="">não informar</option>
+      </select>
+    </div>
+    <div class="field-row" style="margin-bottom:14px;">
+      <div class="field" style="max-width:90px;">
+        <label>estado</label>
+        <select id="fEstado" style="width:100%;border:1px solid var(--hairline);border-radius:10px;padding:10px 8px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;background:#fff;color:var(--ink);">
+          <option value="">-</option>
+          <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option>
+          <option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option>
+          <option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option>
+          <option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+          <option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option>
+          <option>SE</option><option>TO</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>cidade (aparece na busca por localização)</label>
+        <input type="text" id="fCidade" value="${pagina.cidade || ''}" placeholder="ex: Campinas">
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--graphite);margin:-6px 0 14px;">categoria e localização disponíveis porque este perfil é verificado</div>
+    ` : ''}
+    <div class="field-row">
+      <div class="field">
+        <label>foto (url)</label>
+        <input type="text" id="fFoto" value="${pagina.foto_url || ''}" placeholder="https://...">
+      </div>
+      <div class="field" style="max-width:70px;">
+        <label>acento</label>
+        <input type="color" id="fCor" value="${pagina.cor_tema || '#FF4F32'}">
+      </div>
+      <div class="field" style="max-width:70px;">
+        <label>fundo</label>
+        <input type="color" id="fFundo" value="${pagina.cor_fundo || '#F7F5F1'}">
+      </div>
+    </div>
+    <div class="field">
+      <label>conteúdo (arraste pelo ⠿ pra reordenar)</label>
+      <div id="blocosEditArea"></div>
+      <div class="add-bloco-wrap">
+        <button class="btn btn-add" id="btnAbrirMenuBloco" type="button">+ adicionar bloco</button>
+        <div class="add-bloco-menu" id="menuAddBloco">
+          <input type="text" class="add-bloco-busca" id="buscaBloco" placeholder="buscar tipo de bloco…">
+          <div id="listaOpcoesBloco"></div>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-save" id="btnSalvar" type="button">salvar alterações</button>
+    <div class="save-msg" id="saveMsg"></div>
+
+    <div style="border-top:1px solid var(--hairline);margin:26px 0 18px;"></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);margin-bottom:10px;">login (opcional)</div>
+    <div id="areaLogin"></div>
+
+    <div style="border-top:1px solid var(--hairline);margin:26px 0 18px;"></div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent);margin-bottom:10px;">zona de risco</div>
+    <div id="areaExclusao"></div>
+
+    <div style="margin-top:26px;">
+      <button class="btn btn-add" id="btnTogglePreview" type="button" style="width:100%;">mostrar preview ao vivo</button>
+      <div id="previewWrap" style="display:none;margin-top:14px;padding:20px;border:1px dashed var(--hairline);border-radius:14px;background:rgba(0,0,0,0.015);">
+        <div id="previewConteudo"></div>
+      </div>
+    </div>
+  `;
+
+  const fEstadoEl = document.getElementById('fEstado');
+  if (fEstadoEl) {
+    fEstadoEl.value = pagina.estado || '';
+    const fCidadeEl = document.getElementById('fCidade');
+    fEstadoEl.addEventListener('change', () => carregarCidadesParaEstado(fEstadoEl, fCidadeEl, 'listaCidadesEdicao'));
+    if (fEstadoEl.value) carregarCidadesParaEstado(fEstadoEl, fCidadeEl, 'listaCidadesEdicao');
+  }
+  const fCategoriaEl = document.getElementById('fCategoria');
+  if (fCategoriaEl) popularSelectSegmentos(fCategoriaEl, pagina.categoria);
+
+  const blocosArea = document.getElementById('blocosEditArea');
+  let draggedRow = null;
+
+  function addBlocoRow(tipo, dados) {
+    dados = dados || {};
+    const row = document.createElement('div');
+    row.className = 'bloco-edit-item';
+    row.dataset.tipo = tipo;
+    row.dataset.blocoId = dados.id || gerarIdBloco();
+    row.draggable = true;
+
+    const handleDrag = `<span class="drag-handle" style="cursor:grab;color:var(--graphite);margin-right:6px;user-select:none;">⠿</span>`;
+
+    if (tipo === 'texto') {
+      row.innerHTML = `
+        <div class="tipo-row">
+          ${handleDrag}
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">texto</span>
+          <button class="btn btn-remove" type="button" style="margin-left:auto;">✕</button>
+        </div>
+        <textarea class="bloco-conteudo" rows="2" placeholder="escreva um aviso, anúncio, etc.">${dados.conteudo || ''}</textarea>
+      `;
+    } else if (tipo === 'popup') {
+      const copiavelChecked = dados.copiavel === false ? '' : 'checked';
+      row.innerHTML = `
+        <div class="tipo-row">
+          ${handleDrag}
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">pop-up</span>
+          <button class="btn btn-remove" type="button" style="margin-left:auto;">✕</button>
+        </div>
+        <input type="text" placeholder="título (ex: Senha do wi-fi)" class="bloco-titulo" value="${dados.titulo || ''}" style="margin-bottom:8px;">
+        <textarea class="bloco-conteudo" rows="2" placeholder="conteúdo que vai aparecer na janela">${dados.conteudo || ''}</textarea>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">
+          <input type="checkbox" class="bloco-copiavel" ${copiavelChecked}> permitir copiar
+        </label>
+      `;
+    } else if (tipo === 'embed') {
+      const servicoAtual = dados.servico || 'youtube';
+      const opcoesServico = Object.keys(EMBED_SERVICOS).map(key =>
+        `<option value="${key}" ${key === servicoAtual ? 'selected' : ''}>${EMBED_SERVICOS[key].nome}</option>`
+      ).join('');
+      row.innerHTML = `
+        <div class="tipo-row">
+          ${handleDrag}
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">embed</span>
+          <button class="btn btn-remove" type="button" style="margin-left:auto;">✕</button>
+        </div>
+        <select class="bloco-servico" style="width:100%;margin-bottom:8px;border:1px solid var(--hairline);border-radius:10px;padding:9px 10px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:#fff;color:var(--ink);">
+          ${opcoesServico}
+        </select>
+        <input type="text" class="bloco-url" placeholder="${EMBED_SERVICOS[servicoAtual].placeholder}" value="${dados.url || ''}">
+        <div class="bloco-embed-ajuda" style="font-size:11px;color:var(--graphite);margin-top:6px;">${EMBED_SERVICOS[servicoAtual].ajuda}</div>
+        <div class="bloco-embed-erro" style="font-size:11px;color:var(--accent);margin-top:4px;display:none;">essa URL não parece válida para este serviço</div>
+      `;
+      const selectServico = row.querySelector('.bloco-servico');
+      const inputUrl = row.querySelector('.bloco-url');
+      const ajudaEl = row.querySelector('.bloco-embed-ajuda');
+      const erroEl = row.querySelector('.bloco-embed-erro');
+      function validarCampoEmbed() {
+        const servico = selectServico.value;
+        const url = inputUrl.value.trim();
+        const valido = url === '' || validarUrlEmbed(servico, url);
+        erroEl.style.display = valido ? 'none' : 'block';
+      }
+      selectServico.addEventListener('change', () => {
+        inputUrl.placeholder = EMBED_SERVICOS[selectServico.value].placeholder;
+        ajudaEl.textContent = EMBED_SERVICOS[selectServico.value].ajuda;
+        validarCampoEmbed();
+      });
+      inputUrl.addEventListener('input', validarCampoEmbed);
+    } else {
+      row.innerHTML = `
+        <div class="tipo-row">
+          ${handleDrag}
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--graphite);">link</span>
+          <button class="btn btn-remove" type="button" style="margin-left:auto;">✕</button>
+        </div>
+        <div class="link-edit-row">
+          <input type="text" placeholder="título" class="bloco-titulo" value="${dados.titulo || ''}">
+          <input type="text" placeholder="url" class="bloco-url" value="${dados.url || ''}">
+        </div>
+      `;
+    }
+    row.querySelector('.btn-remove').addEventListener('click', () => { row.remove(); atualizarPreview(); });
+    row.addEventListener('input', atualizarPreview);
+
+    // --- drag and drop simples (sem libs) ---
+    row.addEventListener('dragstart', () => {
+      draggedRow = row;
+      setTimeout(() => row.style.opacity = '0.4', 0);
+    });
+    row.addEventListener('dragend', () => {
+      row.style.opacity = '1';
+      draggedRow = null;
+      atualizarPreview();
+    });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedRow || draggedRow === row) return;
+      const rect = row.getBoundingClientRect();
+      const depoisDoMeio = (e.clientY - rect.top) > rect.height / 2;
+      row.parentNode.insertBefore(draggedRow, depoisDoMeio ? row.nextSibling : row);
+    });
+
+    blocosArea.appendChild(row);
+  }
+
+  blocos.forEach(b => addBlocoRow(b.tipo || 'link', b));
+
+  // --- menu unificado de adicionar bloco (extensível pra futuros tipos) ---
+  const TIPOS_BLOCO_DISPONIVEIS = [
+    { tipo: 'link', nome: 'Link', desc: 'um botão que leva a uma URL', icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.6 13.4a1 1 0 010-1.4l3-3a1 1 0 111.4 1.4l-3 3a1 1 0 01-1.4 0zM8 17l-2 2a3 3 0 01-4-4l3-3a3 3 0 014-.2M17 8l2-2a3 3 0 014 4l-3 3a3 3 0 01-4 .2"/></svg>' },
+    { tipo: 'texto', nome: 'Texto', desc: 'um aviso ou anúncio fixo', icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>' },
+    { tipo: 'popup', nome: 'Pop-up', desc: 'janela com senha, PIX, etc.', icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12h8M12 8v8"/></svg>' },
+    { tipo: 'embed', nome: 'Embed', desc: 'YouTube, Spotify, Maps, etc.', icone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l4 3-4 3z"/></svg>' },
+  ];
+
+  const btnAbrirMenuBloco = document.getElementById('btnAbrirMenuBloco');
+  const menuAddBloco = document.getElementById('menuAddBloco');
+  const buscaBloco = document.getElementById('buscaBloco');
+  const listaOpcoesBloco = document.getElementById('listaOpcoesBloco');
+
+  function renderizarOpcoesBloco(filtro) {
+    const termo = (filtro || '').toLowerCase();
+    const filtradas = TIPOS_BLOCO_DISPONIVEIS.filter(o =>
+      o.nome.toLowerCase().includes(termo) || o.desc.toLowerCase().includes(termo)
+    );
+    listaOpcoesBloco.innerHTML = filtradas.length
+      ? filtradas.map(o => `
+          <div class="add-bloco-opcao" data-tipo="${o.tipo}">
+            <span class="icone-opcao">${o.icone}</span>
+            <span><div>${o.nome}</div><div class="desc-opcao">${o.desc}</div></span>
+          </div>`).join('')
+      : `<div class="add-bloco-vazio">nenhum tipo encontrado</div>`;
+
+    listaOpcoesBloco.querySelectorAll('.add-bloco-opcao').forEach(el => {
+      el.addEventListener('click', () => {
+        addBlocoRow(el.dataset.tipo);
+        atualizarPreview();
+        fecharMenuBloco();
+      });
+    });
+  }
+
+  function abrirMenuBloco() {
+    // O menu é movido pro <body> na primeira abertura, assim nenhum
+    // overflow:hidden de ancestral (como a barrinha decorativa do
+    // cartão) consegue cortá-lo visualmente.
+    if (menuAddBloco.parentElement !== document.body) {
+      document.body.appendChild(menuAddBloco);
+    }
+    const rect = btnAbrirMenuBloco.getBoundingClientRect();
+    menuAddBloco.style.top = (rect.bottom + 6) + 'px';
+    menuAddBloco.style.left = rect.left + 'px';
+    menuAddBloco.style.width = rect.width + 'px';
+
+    menuAddBloco.classList.add('aberto');
+    buscaBloco.value = '';
+    renderizarOpcoesBloco('');
+    setTimeout(() => buscaBloco.focus(), 0);
+  }
+  function fecharMenuBloco() {
+    menuAddBloco.classList.remove('aberto');
+  }
+
+  btnAbrirMenuBloco.addEventListener('click', () => {
+    menuAddBloco.classList.contains('aberto') ? fecharMenuBloco() : abrirMenuBloco();
+  });
+  buscaBloco.addEventListener('input', () => renderizarOpcoesBloco(buscaBloco.value));
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.add-bloco-wrap')) fecharMenuBloco();
+  });
+
+  function coletarBlocosAtuais() {
+    return Array.from(blocosArea.querySelectorAll('.bloco-edit-item'))
+      .map(row => {
+        const id = row.dataset.blocoId;
+        if (row.dataset.tipo === 'texto') {
+          const conteudo = row.querySelector('.bloco-conteudo').value.trim();
+          return conteudo ? { id, tipo: 'texto', conteudo } : null;
+        }
+        if (row.dataset.tipo === 'popup') {
+          const titulo = row.querySelector('.bloco-titulo').value.trim();
+          const conteudo = row.querySelector('.bloco-conteudo').value.trim();
+          const copiavel = row.querySelector('.bloco-copiavel').checked;
+          return (titulo && conteudo) ? { id, tipo: 'popup', titulo, conteudo, copiavel } : null;
+        }
+        if (row.dataset.tipo === 'embed') {
+          const servico = row.querySelector('.bloco-servico').value;
+          const url = row.querySelector('.bloco-url').value.trim();
+          return (url && validarUrlEmbed(servico, url)) ? { id, tipo: 'embed', servico, url } : null;
+        }
+        const titulo = row.querySelector('.bloco-titulo').value.trim();
+        const url = row.querySelector('.bloco-url').value.trim();
+        return (titulo && url) ? { id, tipo: 'link', titulo, url } : null;
+      })
+      .filter(Boolean);
+  }
+
+  // --- preview ao vivo ---
+  const previewWrap = document.getElementById('previewWrap');
+  const previewConteudo = document.getElementById('previewConteudo');
+  const btnTogglePreview = document.getElementById('btnTogglePreview');
+  let previewAtivo = false;
+  let previewTimeout = null;
+
+  function atualizarPreview() {
+    if (!previewAtivo) return;
+    clearTimeout(previewTimeout);
+    previewTimeout = setTimeout(() => {
+      previewConteudo.innerHTML = montarPreviewHtml({
+        slug: pagina.slug,
+        titulo: document.getElementById('fTitulo').value.trim(),
+        bio: document.getElementById('fBio').value.trim(),
+        foto_url: document.getElementById('fFoto').value.trim(),
+        verificado: pagina.verificado,
+        verificado_tipo: pagina.verificado_tipo,
+        categoria: document.getElementById('fCategoria') ? document.getElementById('fCategoria').value : pagina.categoria,
+        blocos: coletarBlocosAtuais(),
+      });
+    }, 200);
+  }
+
+  btnTogglePreview.addEventListener('click', () => {
+    previewAtivo = !previewAtivo;
+    previewWrap.style.display = previewAtivo ? 'block' : 'none';
+    btnTogglePreview.textContent = previewAtivo ? 'esconder preview ao vivo' : 'mostrar preview ao vivo';
+    if (previewAtivo) atualizarPreview();
+  });
+
+  ['fTitulo', 'fBio', 'fFoto'].forEach(id => {
+    document.getElementById(id).addEventListener('input', atualizarPreview);
+  });
+
+  // --- área de login: só libera definir/trocar se houver sessão real ---
+  const areaLogin = document.getElementById('areaLogin');
+  const areaExclusao = document.getElementById('areaExclusao');
+  const sessaoAtual = obterSessaoAtual();
+
+  if (sessaoAtual) {
+    areaLogin.innerHTML = `
+      <div style="font-size:11px;color:var(--graphite);margin-bottom:14px;">
+        defina um e-mail e senha pra acessar sem precisar do token toda vez.
+        ${pagina.email ? `e-mail atual: <strong>${pagina.email}</strong>` : 'você ainda não tem login definido.'}
+      </div>
+      <div class="field">
+        <label>e-mail</label>
+        <input type="email" id="fLoginEmail" value="${pagina.email || ''}" placeholder="voce@email.com">
+      </div>
+      <div class="field">
+        <label>${pagina.tem_login ? 'nova senha' : 'senha'} (mínimo 8 caracteres)</label>
+        <input type="password" id="fLoginSenha" placeholder="••••••••">
+      </div>
+      <button class="btn btn-add" id="btnDefinirLogin" type="button" style="width:100%;">salvar login</button>
+      <div class="save-msg" id="loginDefMsg"></div>
+    `;
+
+    document.getElementById('btnDefinirLogin').addEventListener('click', async () => {
+      const btn = document.getElementById('btnDefinirLogin');
+      const msg = document.getElementById('loginDefMsg');
+      const email = document.getElementById('fLoginEmail').value.trim();
+      const senha = document.getElementById('fLoginSenha').value;
+
+      if (!email || senha.length < 8) {
+        msg.textContent = 'preencha um e-mail válido e uma senha com pelo menos 8 caracteres';
+        msg.className = 'save-msg err';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'salvando…';
+      try {
+        const res = await fetch(`${API_BASE}/definir_login.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug, sessao: sessaoAtual, email, senha }),
+        });
+        const data = await res.json();
+        msg.textContent = data.mensagem || data.erro || 'algo deu errado';
+        msg.className = data.sucesso ? 'save-msg ok' : 'save-msg err';
+        if (data.sucesso) document.getElementById('fLoginSenha').value = '';
+      } catch (e) {
+        msg.textContent = 'erro de conexão com a api';
+        msg.className = 'save-msg err';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'salvar login';
+      }
+    });
+
+    areaExclusao.innerHTML = `
+      <div style="font-size:11px;color:var(--graphite);margin-bottom:12px;">
+        pedir a exclusão definitiva da sua página. o admin confirma antes de apagar de verdade.
+      </div>
+      <div class="field">
+        <textarea id="fExclusaoMotivo" rows="2" placeholder="motivo (opcional)"></textarea>
+      </div>
+      <button class="btn btn-add" id="btnSolicitarExclusao" type="button" style="width:100%;color:var(--accent);border-color:var(--accent);">solicitar exclusão da conta</button>
+      <div class="save-msg" id="exclusaoMsg"></div>
+    `;
+
+    document.getElementById('btnSolicitarExclusao').addEventListener('click', async () => {
+      const confirmou = confirm('Tem certeza? Isso inicia o processo de exclusão definitiva da sua página.');
+      if (!confirmou) return;
+
+      const btn = document.getElementById('btnSolicitarExclusao');
+      const msg = document.getElementById('exclusaoMsg');
+      const motivo = document.getElementById('fExclusaoMotivo').value.trim();
+
+      btn.disabled = true;
+      btn.textContent = 'enviando…';
+      try {
+        const res = await fetch(`${API_BASE}/solicitar_exclusao.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug, sessao: sessaoAtual, motivo }),
+        });
+        const data = await res.json();
+        msg.textContent = data.mensagem || data.erro || 'algo deu errado';
+        msg.className = data.sucesso ? 'save-msg ok' : 'save-msg err';
+        if (data.sucesso) btn.style.display = 'none';
+      } catch (e) {
+        msg.textContent = 'erro de conexão com a api';
+        msg.className = 'save-msg err';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'solicitar exclusão da conta';
+      }
+    });
+  } else {
+    areaLogin.innerHTML = `
+      <div style="font-size:11px;color:var(--graphite);">
+        pra definir ou trocar seu login, é preciso ter entrado com e-mail e senha
+        (não vale só o token de edição). <button class="btn-link-discreto" onclick="window.location.href=window.location.origin">fazer login</button>
+        ou use "esqueci minha senha/token" na tela inicial pra receber um link válido por e-mail.
+      </div>
+    `;
+    areaExclusao.innerHTML = `
+      <div style="font-size:11px;color:var(--graphite);">
+        pedir a exclusão da conta também exige estar logado com e-mail e senha, não só com o token.
+      </div>
+    `;
+  }
+
+  // --- carregar estatísticas ---
+  (async () => {
+    const statsConteudo = document.getElementById('statsConteudo');
+    try {
+      const res = await fetch(`${API_BASE}/estatisticas.php?slug=${encodeURIComponent(slug)}&token=${encodeURIComponent(token)}`);
+      const data = await res.json();
+      if (data.sucesso) {
+        statsConteudo.innerHTML = montarPainelEstatisticas(data);
+        document.getElementById('btnBaixarCsv').addEventListener('click', () => gerarCsvEstatisticas(data, slug));
+      } else {
+        statsConteudo.textContent = 'não foi possível carregar as estatísticas.';
+      }
+    } catch (e) {
+      statsConteudo.textContent = 'erro de conexão ao carregar estatísticas.';
+    }
+  })();
+
+  document.getElementById('btnSalvar').addEventListener('click', async () => {
+    const btn = document.getElementById('btnSalvar');
+    const msg = document.getElementById('saveMsg');
+    btn.disabled = true;
+    btn.textContent = 'salvando…';
+    msg.textContent = '';
+    msg.className = 'save-msg';
+
+    const payload = {
+      slug,
+      token,
+      titulo: document.getElementById('fTitulo').value.trim(),
+      bio: document.getElementById('fBio').value.trim(),
+      foto_url: document.getElementById('fFoto').value.trim(),
+      cor_tema: document.getElementById('fCor').value,
+      cor_fundo: document.getElementById('fFundo').value,
+      estado: document.getElementById('fEstado') ? document.getElementById('fEstado').value : undefined,
+      cidade: document.getElementById('fCidade') ? document.getElementById('fCidade').value.trim() : undefined,
+      categoria: document.getElementById('fCategoria') ? document.getElementById('fCategoria').value : undefined,
+      blocos: coletarBlocosAtuais(),
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/salvar.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (data.sucesso) {
+        msg.textContent = 'alterações salvas';
+        msg.classList.add('ok');
+        aplicarCorTema(payload.cor_tema, payload.cor_fundo);
+      } else {
+        msg.textContent = data.erro || 'não foi possível salvar';
+        msg.classList.add('err');
+      }
+    } catch (e) {
+      msg.textContent = 'erro de conexão com a api';
+      msg.classList.add('err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'salvar alterações';
+    }
+  });
+}
+
+async function iniciar() {
+  await buscarSegmentos(); // aquece o cache antes de renderizar qualquer selo de categoria
+
+  if (!slug) {
+    renderEstadoVazio();
+    return;
+  }
+
+  try {
+    const qs = new URLSearchParams({ slug });
+    if (token) qs.set('token', token);
+    const res = await fetch(`${API_BASE}/buscar.php?${qs.toString()}`);
+    const data = await res.json();
+
+    if (!data.sucesso) {
+      renderErro(data.erro);
+      return;
+    }
+
+    if (data.pode_editar) {
+      renderEdicao(data.pagina);
+    } else {
+      renderLeitura(data.pagina);
+      if (token) {
+        const aviso = document.createElement('div');
+        aviso.textContent = 'token de edição inválido — mostrando modo leitura';
+        aviso.style.cssText = 'text-align:center;font-size:11px;color:var(--accent);font-family:\'IBM Plex Mono\',monospace;margin-bottom:14px;';
+        cardEl.insertBefore(aviso, cardEl.firstChild);
+      }
+    }
+  } catch (e) {
+    renderErro('não foi possível conectar à api. tenta de novo em instantes.');
+  }
+}
+
+iniciar();
