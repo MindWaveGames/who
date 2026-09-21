@@ -336,10 +336,15 @@ document.getElementById('mapaBuscarBtn').addEventListener('click', async () => {
   mapaMsg.className = 'save-msg';
   mapaResultados.innerHTML = '';
 
+  const categoriaMapa = document.getElementById('mapaCategoria').value;
+  const paramsLink = new URLSearchParams({ estado });
+  if (cidade) paramsLink.set('cidade', cidade);
+  if (categoriaMapa) paramsLink.set('categoria', categoriaMapa);
+  document.getElementById('linkBuscaCompletaMapa').href = 'busca.html?' + paramsLink.toString();
+
   try {
     const params = new URLSearchParams({ estado });
     if (cidade) params.set('cidade', cidade);
-    const categoriaMapa = document.getElementById('mapaCategoria').value;
     if (categoriaMapa) params.set('categoria', categoriaMapa);
     const res = await fetch(`${API_BASE}/buscar_local.php?${params.toString()}`);
     const data = await res.json().catch(() => null);
@@ -396,9 +401,18 @@ buscaOverlay.addEventListener('click', (e) => {
 const buscaCategoria = document.getElementById('buscaCategoria');
 buscaCategoria.addEventListener('change', () => buscaInput.dispatchEvent(new Event('input')));
 
+function atualizarLinkBuscaCompleta() {
+  const params = new URLSearchParams();
+  if (buscaInput.value.trim()) params.set('q', buscaInput.value.trim());
+  if (buscaCategoria.value) params.set('categoria', buscaCategoria.value);
+  const query = params.toString();
+  document.getElementById('linkBuscaCompleta').href = 'busca.html' + (query ? '?' + query : '');
+}
+
 buscaInput.addEventListener('input', () => {
   clearTimeout(timeoutBusca);
   const termo = buscaInput.value.trim();
+  atualizarLinkBuscaCompleta();
   if (termo.length < 2) {
     buscaResultados.innerHTML = '';
     return;
