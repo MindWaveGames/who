@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buscar perfis — Who</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src https://fonts.gstatic.com;
+  img-src 'self' https: data:;
+  connect-src 'self' https://editoramindwave.com.br https://api.bigdatacloud.net https://servicodados.ibge.gov.br;
+">
+<link rel="apple-touch-icon" sizes="180x180" href="https://editoramindwave.com.br/api/libs/logos/icon2.png">
+<link rel="icon" type="image/png" href="https://editoramindwave.com.br/api/libs/logos/icon1.png">
+<link rel="manifest" href="/chrome.json">
+</head>
+<body>
+  <div class="scene busca-scene">
+    <div class="prompt">
+      <span class="dot"></span><span>who://busca</span>
+      <span class="lado-direito">
+        <button class="tema-toggle" id="btnHome" type="button" title="voltar ao início" aria-label="voltar ao início"></button>
+        <button class="tema-toggle" id="btnTema" type="button" title="alternar modo dia/noite" aria-label="alternar modo dia/noite"></button>
+      </span>
+    </div>
+
+    <div class="busca-filtros">
+      <div class="field">
+        <input type="text" id="fNome" placeholder="buscar por nome ou @usuário…">
+      </div>
+      <div class="busca-filtros-row" style="margin-bottom:14px;">
+        <div class="field">
+          <select id="fCategoria">
+            <option value="">todas as categorias</option>
+          </select>
+        </div>
+      </div>
+      <div class="busca-filtros-row">
+        <div class="field" style="max-width:90px;">
+          <select id="fEstado">
+            <option value="">UF</option>
+            <option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option>
+            <option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option>
+            <option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option>
+            <option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+            <option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option>
+            <option>SE</option><option>TO</option>
+          </select>
+        </div>
+        <div class="field">
+          <input type="text" id="fCidade" placeholder="cidade (opcional)">
+        </div>
+      </div>
+      <button class="btn btn-add" id="btnUsarLocalizacao" type="button" style="margin-top:10px;">usar minha localização</button>
+    </div>
+
+    <div class="busca-contagem" id="contagem"></div>
+    <div id="resultados"></div>
+  </div>
+
+<script src="busca.js"></script>
+</body>
+</html>
